@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "autocusto-br-backend",
   "builds": [
     {
       "src": "server.js",
@@ -12,9 +11,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "GEMINI_API_KEY": "@gemini_api_key",
-    "ALLOWED_ORIGIN": "@allowed_origin"
-  }
+  ]
 }
