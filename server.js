@@ -78,7 +78,7 @@ app.get('/', (req, res) => res.json({
 
 app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
   const { mensagem } = req.body;
-  if (!mensagem || typeof mensagem !== 'string' || mensagem.length > 500)
+  if (!mensagem || typeof mensagem !== 'string' || mensagem.length > 1500)
     return res.status(400).json({ error: 'Mensagem inválida.' });
 
   const bloqueadas = ['ignore', 'system prompt', 'jailbreak', 'forget', 'esqueça'];
