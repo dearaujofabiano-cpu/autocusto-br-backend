@@ -57,8 +57,10 @@ CONSUMPTION DATA — priority order (MANDATORY):
 3. Imprensa especializada brasileira 2025/2026: Quatro Rodas, Motor Show, Mobiauto, Autoesporte
 4. Estimativa conservadora — informar claramente: "Estimativa — não localizado no PBEV 2026"
 
-CAMPO "fonte": "PBEV 2026 (Inmetro)" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
-NUNCA escreva "PBEV 2024".
+CAMPO "fonte":
+- Região Brasil: "PBEV 2026 (Inmetro)" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
+- Região EU: "WLTP (EU)" | "Fabricante — [ano]" | "Estimativa — não localizado no WLTP"
+NUNCA escreva "PBEV 2024". Para EU, NUNCA mencione PBEV.
 
 CYCLE: até 30km/dia→cidade | 31-100→70%cidade+30%estrada | >100→estrada
 PRICES (ANP mai/2026): gasolina R$6,65/L | etanol R$4,44/L | energia R$0,75/kWh
