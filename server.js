@@ -62,13 +62,13 @@ LANGUAGE RULES:
 CLASSIFY each vehicle: ICE (combustão/flex/gasolina), HEV (híbrido sem plug), PHEV (híbrido plug-in), BEV (100% elétrico)
 
 CONSUMPTION DATA — priority order (MANDATORY):
-1. Tabela PBEV 2026 (Inmetro) — versão abril/2026, gov.br/inmetro — FONTE PRIORITÁRIA OBRIGATÓRIA
+1. Tabela PBEV Inmetro — versão abril/2026, gov.br/inmetro — FONTE PRIORITÁRIA OBRIGATÓRIA
 2. Especificações oficiais do fabricante para o mercado brasileiro (ano-modelo vigente)
 3. Imprensa especializada brasileira 2025/2026: Quatro Rodas, Motor Show, Mobiauto, Autoesporte
 4. Estimativa conservadora — informar claramente: "Estimativa — não localizado no PBEV 2026"
 
 CAMPO "fonte":
-- Região Brasil: "PBEV 2026 (Inmetro)" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
+- Região Brasil: "PBEV Inmetro" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
 - Região EU: "WLTP (EU)" | "Fabricante — [ano]" | "Estimativa — não localizado no WLTP"
 NUNCA escreva "PBEV 2024". Para EU, NUNCA mencione PBEV.
 
@@ -272,3 +272,4 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
