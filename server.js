@@ -68,7 +68,7 @@ CONSUMPTION DATA — priority order (MANDATORY):
 4. Estimativa conservadora — informar claramente: "Estimativa — não localizado no PBEV 2026"
 
 CAMPO "fonte":
-- Região Brasil: "PBEV Inmetro" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
+- Região Brasil: "PBEV INMETRO" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
 - Região EU: "WLTP (EU)" | "Fabricante — [ano]" | "Estimativa — não localizado no WLTP"
 NUNCA escreva "PBEV 2024". Para EU, NUNCA mencione PBEV.
 
