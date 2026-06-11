@@ -1,6 +1,6 @@
 /**
  * AutoCusto BR — Backend
- * IA: Groq (primário) → OpenRouter (fallback automático)
+ * IA: Gemini (primário) → Groq (fallback) → OpenRouter (fallback)
  * Compatível com: Vercel (Serverless) e Render.com (Web Service)
  */
 
@@ -13,12 +13,13 @@ const { obterDadosOficiais } = require('./lookup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
-if (!GROQ_API_KEY && !OPENROUTER_API_KEY) {
-  console.error('❌ Nenhuma API Key configurada. Defina GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
+if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
+  console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
   process.exit(1);
 }
 
@@ -82,6 +83,38 @@ CALCULATIONS: km_mes=km_dia×30; km_ano=km_dia×365; consumo_mes; custo_mes; cus
 CRITICAL: RETURN ONLY valid JSON — absolutely no markdown, no explanation, no text outside the JSON object.
 {"modo":"comparativo","comparativo":{"parametros":{"km_dia":0,"km_mes":0,"km_ano":0,"ciclo":"string","preco_gasolina":6.65,"preco_etanol":4.44,"preco_kwh":0.75,"etanol_compensa":true},"veiculos":[{"nome":"string","ano":"string","tipo":"ICE|HEV|PHEV|BEV","motor":"string","combustivel":"string","consumo_oficial":{"cidade":0,"estrada":0,"unidade":"string","fonte":"string"},"autonomia_eletrica_km":null,"cenarios":[{"nome":"string","consumo_mes":0,"unidade_consumo":"string","custo_mes":0,"custo_ano":0,"custo_km":0,"economia_mes_vs_veiculo_a":0,"economia_ano_vs_veiculo_a":0}],"cenario_recomendado":"string"}]},"analise":"string"}`;
 
+// ── GEMINI ─────────────────────────────────────────────────────────────────
+async function callGemini(mensagem) {
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: mensagem }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json'
+        }
+      })
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) throw new Error('Gemini: resposta vazia');
+  return JSON.parse(raw);
+}
+
 // ── GROQ ───────────────────────────────────────────────────────────────────
 async function callGroq(mensagem) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
@@ -110,7 +143,15 @@ async function callGroq(mensagem) {
     if (res.status === 429) {
       console.warn("⏳ Groq rate limit — aguardando 3s para retry...");
       await new Promise(r => setTimeout(r, 3000));
-      const res2 = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` }, body: JSON.stringify({ model: "llama-3.3-70b-versatile", temperature: 0.1, max_tokens: 2048, response_format: { type: "json_object" }, messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }] }) });
+      const res2 = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile", temperature: 0.1, max_tokens: 2048,
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }]
+        })
+      });
       if (!res2.ok) throw new Error("Groq rate limit persistente — passando para fallback");
       const data2 = await res2.json();
       const raw2 = data2?.choices?.[0]?.message?.content;
@@ -127,7 +168,6 @@ async function callGroq(mensagem) {
 }
 
 // ── OPENROUTER ─────────────────────────────────────────────────────────────
-// Tenta múltiplos modelos gratuitos em sequência
 const OPENROUTER_MODELS = [
   'openrouter/auto',
   'deepseek/deepseek-r1:free',
@@ -188,9 +228,10 @@ async function callOpenRouter(mensagem) {
 app.get('/', (req, res) => res.json({
   status: 'online',
   service: 'AutoCusto BR API',
-  version: '2.1.0',
-  ia_primaria: 'Groq — Llama 3.3 70B',
-  ia_fallback: 'OpenRouter — múltiplos modelos gratuitos',
+  version: '2.2.0',
+  ia_primaria: 'Gemini 2.5 Flash',
+  ia_fallback_1: 'Groq — Llama 3.3 70B',
+  ia_fallback_2: 'OpenRouter — múltiplos modelos gratuitos',
   timestamp: new Date().toISOString()
 }));
 
@@ -220,27 +261,38 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
 
   let parsed = null;
   let iaUsada = null;
+  let erroGemini = null;
   let erroGroq = null;
 
-  // 1. Tenta Groq
+  // 1. Tenta Gemini (primário)
   try {
-    parsed = await callGroq(mensagemEnriquecida);
-    iaUsada = 'groq';
-    console.log('✅ Groq respondeu com sucesso');
+    parsed = await callGemini(mensagemEnriquecida);
+    iaUsada = 'gemini';
+    console.log('✅ Gemini respondeu com sucesso');
   } catch (err) {
-    erroGroq = err.message;
-    console.warn(`⚠️  Groq falhou (${erroGroq}) — tentando OpenRouter...`);
+    erroGemini = err.message;
+    console.warn(`⚠️  Gemini falhou (${erroGemini}) — tentando Groq...`);
 
-    // 2. Fallback: OpenRouter (tenta múltiplos modelos internamente)
+    // 2. Fallback: Groq
     try {
-      parsed = await callOpenRouter(mensagemEnriquecida);
-      iaUsada = 'openrouter';
+      parsed = await callGroq(mensagemEnriquecida);
+      iaUsada = 'groq';
+      console.log('✅ Groq respondeu com sucesso (fallback)');
     } catch (err2) {
-      console.error(`❌ OpenRouter também falhou: ${err2.message}`);
-      return res.status(502).json({
-        error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.',
-        detalhes: { groq: erroGroq, openrouter: err2.message }
-      });
+      erroGroq = err2.message;
+      console.warn(`⚠️  Groq falhou (${erroGroq}) — tentando OpenRouter...`);
+
+      // 3. Fallback: OpenRouter
+      try {
+        parsed = await callOpenRouter(mensagemEnriquecida);
+        iaUsada = 'openrouter';
+      } catch (err3) {
+        console.error(`❌ OpenRouter também falhou: ${err3.message}`);
+        return res.status(502).json({
+          error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.',
+          detalhes: { gemini: erroGemini, groq: erroGroq, openrouter: err3.message }
+        });
+      }
     }
   }
 
@@ -261,15 +313,16 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
 app.get('/api/status', (req, res) => res.json({
   status: 'ok',
   limite_por_hora: 20,
+  gemini: GEMINI_API_KEY ? 'configurado' : 'não configurado',
   groq: GROQ_API_KEY ? 'configurado' : 'não configurado',
   openrouter: OPENROUTER_API_KEY ? 'configurado' : 'não configurado'
 }));
 
 app.listen(PORT, () => {
   console.log(`✅ AutoCusto BR backend na porta ${PORT}`);
+  console.log(`🤖 Gemini:      ${GEMINI_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
   console.log(`🤖 Groq:        ${GROQ_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
   console.log(`🤖 OpenRouter:  ${OPENROUTER_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
 });
 
 module.exports = app;
-
