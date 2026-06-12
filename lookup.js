@@ -109,7 +109,10 @@ function formatarParaPrompt(resultado, regiao) {
       linhas.push(`Consumo gasolina: cidade ${c.gasolina.cidade} km/L | estrada ${c.gasolina.estrada} km/L`);
     }
     if (c.etanol) {
-      linhas.push(`Consumo etanol: cidade ${c.etanol.cidade} km/Le | estrada ${c.etanol.estrada} km/Le`);
+      linhas.push(`Consumo etanol: cidade ${c.etanol.cidade} km/L | estrada ${c.etanol.estrada} km/L`);
+    }
+    if (c.diesel) {
+      linhas.push(`Consumo diesel: cidade ${c.diesel.cidade} km/L | estrada ${c.diesel.estrada} km/L`);
     }
     if (c.eletrico) {
       linhas.push(`Consumo elétrico: cidade ${c.eletrico.cidade} km/Le | estrada ${c.eletrico.estrada} km/Le`);
