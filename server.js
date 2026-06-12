@@ -229,6 +229,26 @@ async function callOpenRouter(mensagem) {
   throw new Error(`OpenRouter: todos os modelos falharam. Último erro: ${ultimoErro}`);
 }
 
+// ── PÓS-PROCESSAMENTO ──────────────────────────────────────────────────────
+/**
+ * A IA frequentemente erra o cálculo de custo_km (erro de ordem de grandeza),
+ * mesmo quando custo_mes/custo_ano estão corretos. Recalcula custo_km de forma
+ * determinística a partir de custo_mes e km_mes, garantindo precisão.
+ */
+function recalcularCustoKm(parsed) {
+  const kmMes = parsed?.comparativo?.parametros?.km_mes;
+  if (!kmMes || kmMes <= 0) return parsed;
+
+  for (const v of parsed?.comparativo?.veiculos || []) {
+    for (const c of v.cenarios || []) {
+      if (typeof c.custo_mes === 'number') {
+        c.custo_km = Math.round((c.custo_mes / kmMes) * 10000) / 10000;
+      }
+    }
+  }
+  return parsed;
+}
+
 // ── ROUTES ─────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => res.json({
   status: 'online',
@@ -311,6 +331,8 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
   if (!parsed.analise && parsed.comparativo?.analise) {
     parsed.analise = parsed.comparativo.analise;
   }
+
+  parsed = recalcularCustoKm(parsed);
 
   return res.json(parsed);
 });
