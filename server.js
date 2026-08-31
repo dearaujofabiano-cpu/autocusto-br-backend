@@ -93,10 +93,17 @@ async function callGemini(mensagem) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
   // gemini-2.5-flash: desligamento oficial 16/10/2026, com cortes antecipados já
-  // relatados por devs desde meados de 2026. Migrado para gemini-3.5-flash
-  // (baseline estável de migração recomendada pelo Google).
+  // relatados por devs desde meados de 2026.
+  //
+  // Escolhido gemini-3.1-flash-lite pela cota do nível gratuito, conferida no
+  // painel do projeto: 15 RPM e 500 RPD, contra 5 RPM e 20 RPD de todos os
+  // demais Flash (2.5, 3, 3.7). O tráfego vem de canais sociais, que chegam em
+  // rajadas — o gargalo real é o RPM, e 20 RPD se esgotaria num único post.
+  // O 3.1 Pro não tem cota gratuita (0/0).
+  const GEMINI_MODEL = 'gemini-3.1-flash-lite';
+
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
