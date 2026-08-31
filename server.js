@@ -18,6 +18,31 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
+// ── MODELOS DA CASCATA ──────────────────────────────────────────────────────
+// Configuráveis por variável de ambiente para permitir trocar de modelo sem
+// alterar código — provedores depreciam modelos com frequência. Os defaults
+// abaixo são o que roda se a env não estiver definida.
+//
+// GEMINI_MODEL: gemini-3.1-flash-lite tem 15 RPM e 500 RPD no nível gratuito,
+// contra 5 RPM e 20 RPD dos demais Flash. O tráfego vem de canais sociais, que
+// chegam em rajada, então o RPM é o gargalo real.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+
+// GROQ_MODEL: substituto indicado pela Groq após a depreciação do
+// llama-3.3-70b-versatile em 17/06/2026.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+
+// OPENROUTER_MODELS: lista separada por vírgula, tentada em ordem até uma
+// responder. Só modelos gratuitos por padrão — 'openrouter/auto' é PAGO e foi
+// deliberadamente deixado de fora; para usá-lo, basta acrescentá-lo ao valor
+// desta env. Os modelos free da OpenRouter rotacionam (os DeepSeek saíram do
+// catálogo em jul/2026), e 'openrouter/free' é o auto-router gratuito, que
+// escolhe sozinho um free disponível — resistente a essa rotação.
+const OPENROUTER_MODELS = (
+  process.env.OPENROUTER_MODELS ||
+  'openrouter/free,meta-llama/llama-3.3-70b-instruct:free'
+).split(',').map(m => m.trim()).filter(Boolean);
+
 if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
   console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
   process.exit(1);
@@ -93,7 +118,7 @@ async function callGemini(mensagem) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -131,7 +156,7 @@ async function callGroq(mensagem) {
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: GROQ_MODEL,
       temperature: 0.1,
       max_tokens: 2048,
       response_format: { type: 'json_object' },
@@ -152,7 +177,7 @@ async function callGroq(mensagem) {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile", temperature: 0.1, max_tokens: 2048,
+          model: GROQ_MODEL, temperature: 0.1, max_tokens: 2048,
           response_format: { type: "json_object" },
           messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }]
         })
@@ -173,12 +198,6 @@ async function callGroq(mensagem) {
 }
 
 // ── OPENROUTER ─────────────────────────────────────────────────────────────
-const OPENROUTER_MODELS = [
-  'openrouter/auto',
-  'deepseek/deepseek-r1:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-v3:free',
-];
 
 async function callOpenRouter(mensagem) {
   if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY não configurada');
@@ -361,9 +380,9 @@ app.get('/api/veiculos/taxonomia', globalLimiter, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✅ AutoCusto BR backend na porta ${PORT}`);
-  console.log(`🤖 Gemini:      ${GEMINI_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
-  console.log(`🤖 Groq:        ${GROQ_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
-  console.log(`🤖 OpenRouter:  ${OPENROUTER_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
+  console.log(`🤖 Gemini:      ${GEMINI_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${GEMINI_MODEL}`);
+  console.log(`🤖 Groq:        ${GROQ_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${GROQ_MODEL}`);
+  console.log(`🤖 OpenRouter:  ${OPENROUTER_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${OPENROUTER_MODELS.join(', ')}`);
 });
 
 module.exports = app;
