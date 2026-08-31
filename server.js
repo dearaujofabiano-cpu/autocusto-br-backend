@@ -18,6 +18,31 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
+// ── MODELOS DA CASCATA ──────────────────────────────────────────────────────
+// Configuráveis por variável de ambiente para permitir trocar de modelo sem
+// alterar código — provedores depreciam modelos com frequência. Os defaults
+// abaixo são o que roda se a env não estiver definida.
+//
+// GEMINI_MODEL: gemini-3.1-flash-lite tem 15 RPM e 500 RPD no nível gratuito,
+// contra 5 RPM e 20 RPD dos demais Flash. O tráfego vem de canais sociais, que
+// chegam em rajada, então o RPM é o gargalo real.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+
+// GROQ_MODEL: substituto indicado pela Groq após a depreciação do
+// llama-3.3-70b-versatile em 17/06/2026.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+
+// OPENROUTER_MODELS: lista separada por vírgula, tentada em ordem até uma
+// responder. Só modelos gratuitos por padrão — 'openrouter/auto' é PAGO e foi
+// deliberadamente deixado de fora; para usá-lo, basta acrescentá-lo ao valor
+// desta env. Os modelos free da OpenRouter rotacionam (os DeepSeek saíram do
+// catálogo em jul/2026), e 'openrouter/free' é o auto-router gratuito, que
+// escolhe sozinho um free disponível — resistente a essa rotação.
+const OPENROUTER_MODELS = (
+  process.env.OPENROUTER_MODELS ||
+  'openrouter/free,meta-llama/llama-3.3-70b-instruct:free'
+).split(',').map(m => m.trim()).filter(Boolean);
+
 if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
   console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
   process.exit(1);
@@ -92,16 +117,6 @@ CRITICAL: RETURN ONLY valid JSON — absolutely no markdown, no explanation, no 
 async function callGemini(mensagem) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
-  // gemini-2.5-flash: desligamento oficial 16/10/2026, com cortes antecipados já
-  // relatados por devs desde meados de 2026.
-  //
-  // Escolhido gemini-3.1-flash-lite pela cota do nível gratuito, conferida no
-  // painel do projeto: 15 RPM e 500 RPD, contra 5 RPM e 20 RPD de todos os
-  // demais Flash (2.5, 3, 3.7). O tráfego vem de canais sociais, que chegam em
-  // rajadas — o gargalo real é o RPM, e 20 RPD se esgotaria num único post.
-  // O 3.1 Pro não tem cota gratuita (0/0).
-  const GEMINI_MODEL = 'gemini-3.1-flash-lite';
-
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -133,10 +148,6 @@ async function callGemini(mensagem) {
 // ── GROQ ───────────────────────────────────────────────────────────────────
 async function callGroq(mensagem) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
-
-  // llama-3.3-70b-versatile foi depreciado pela Groq em 17/06/2026.
-  // Substituto recomendado oficialmente pela Groq: openai/gpt-oss-120b.
-  const GROQ_MODEL = 'openai/gpt-oss-120b';
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -187,16 +198,6 @@ async function callGroq(mensagem) {
 }
 
 // ── OPENROUTER ─────────────────────────────────────────────────────────────
-// Modelos free da OpenRouter rotacionam com frequência (DeepSeek saiu do
-// catálogo free em jul/2026). 'openrouter/free' é o auto-router gratuito da
-// própria OpenRouter (lançado fev/2026): escolhe automaticamente um modelo
-// free disponível — resistente a esse tipo de rotação. Mantemos 2 fixos como
-// tentativa adicional, mas nunca dependa só deles.
-const OPENROUTER_MODELS = [
-  'openrouter/free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'openrouter/auto',
-];
 
 async function callOpenRouter(mensagem) {
   if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY não configurada');
@@ -365,9 +366,9 @@ app.get('/api/status', (req, res) => res.json({
 
 app.listen(PORT, () => {
   console.log(`✅ AutoCusto BR backend na porta ${PORT}`);
-  console.log(`🤖 Gemini:      ${GEMINI_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
-  console.log(`🤖 Groq:        ${GROQ_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
-  console.log(`🤖 OpenRouter:  ${OPENROUTER_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}`);
+  console.log(`🤖 Gemini:      ${GEMINI_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${GEMINI_MODEL}`);
+  console.log(`🤖 Groq:        ${GROQ_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${GROQ_MODEL}`);
+  console.log(`🤖 OpenRouter:  ${OPENROUTER_API_KEY ? 'configurado ✓' : 'NÃO CONFIGURADO ✗'}  → ${OPENROUTER_MODELS.join(', ')}`);
 });
 
 module.exports = app;
