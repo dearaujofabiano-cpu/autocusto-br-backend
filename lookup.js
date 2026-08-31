@@ -165,4 +165,42 @@ function obterDadosOficiais(veiculos, regiao = 'BR') {
     : '';
 }
 
-module.exports = { obterDadosOficiais };
+/**
+ * Constrói a árvore Marca → Modelo → [Versões] a partir do pbev.json,
+ * para alimentar os seletores em cascata do frontend.
+ * Ordenado alfabeticamente em cada nível.
+ *
+ * PENDÊNCIA: só cobre a região BR (pbev.json). A região EU (wltp.json)
+ * continua com campos de texto livre no frontend — estender aqui quando
+ * a cascata for aplicada ao WLTP.
+ */
+function obterTaxonomia() {
+  carregarDados();
+  const arvore = {};
+
+  for (const v of _pbev) {
+    if (!v.marca || !v.modelo) continue;
+    // O dataset traz a mesma marca em caixas diferentes ("NISSAN" e "Nissan"),
+    // o que geraria duas entradas distintas no seletor. Unifica em maiúsculo —
+    // seguro porque buscar() já normaliza a caixa antes de comparar.
+    const marca = String(v.marca).toUpperCase();
+    if (!arvore[marca]) arvore[marca] = {};
+    if (!arvore[marca][v.modelo]) arvore[marca][v.modelo] = new Set();
+    if (v.versao) arvore[marca][v.modelo].add(v.versao);
+  }
+
+  // Converter Sets em arrays ordenados, e ordenar marcas/modelos.
+  // localeCompare em vez de sort() puro: a ordenação padrão é por code unit,
+  // que jogaria qualquer entrada em caixa mista para fora da ordem alfabética.
+  const ord = (a, b) => a.localeCompare(b, 'pt-BR');
+  const resultado = {};
+  for (const marca of Object.keys(arvore).sort(ord)) {
+    resultado[marca] = {};
+    for (const modelo of Object.keys(arvore[marca]).sort(ord)) {
+      resultado[marca][modelo] = [...arvore[marca][modelo]].sort(ord);
+    }
+  }
+  return resultado;
+}
+
+module.exports = { obterDadosOficiais, obterTaxonomia };
