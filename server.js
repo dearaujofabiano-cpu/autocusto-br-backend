@@ -92,8 +92,11 @@ CRITICAL: RETURN ONLY valid JSON — absolutely no markdown, no explanation, no 
 async function callGemini(mensagem) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
+  // gemini-2.5-flash: desligamento oficial 16/10/2026, com cortes antecipados já
+  // relatados por devs desde meados de 2026. Migrado para gemini-3.5-flash
+  // (baseline estável de migração recomendada pelo Google).
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,6 +127,10 @@ async function callGemini(mensagem) {
 async function callGroq(mensagem) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
 
+  // llama-3.3-70b-versatile foi depreciado pela Groq em 17/06/2026.
+  // Substituto recomendado oficialmente pela Groq: openai/gpt-oss-120b.
+  const GROQ_MODEL = 'openai/gpt-oss-120b';
+
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -131,7 +138,7 @@ async function callGroq(mensagem) {
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: GROQ_MODEL,
       temperature: 0.1,
       max_tokens: 2048,
       response_format: { type: 'json_object' },
@@ -152,7 +159,7 @@ async function callGroq(mensagem) {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile", temperature: 0.1, max_tokens: 2048,
+          model: GROQ_MODEL, temperature: 0.1, max_tokens: 2048,
           response_format: { type: "json_object" },
           messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }]
         })
@@ -173,11 +180,15 @@ async function callGroq(mensagem) {
 }
 
 // ── OPENROUTER ─────────────────────────────────────────────────────────────
+// Modelos free da OpenRouter rotacionam com frequência (DeepSeek saiu do
+// catálogo free em jul/2026). 'openrouter/free' é o auto-router gratuito da
+// própria OpenRouter (lançado fev/2026): escolhe automaticamente um modelo
+// free disponível — resistente a esse tipo de rotação. Mantemos 2 fixos como
+// tentativa adicional, mas nunca dependa só deles.
 const OPENROUTER_MODELS = [
-  'openrouter/auto',
-  'deepseek/deepseek-r1:free',
+  'openrouter/free',
   'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-v3:free',
+  'openrouter/auto',
 ];
 
 async function callOpenRouter(mensagem) {
