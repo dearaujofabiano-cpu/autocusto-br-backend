@@ -9,7 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
-const { obterDadosOficiais } = require('./lookup');
+const { obterDadosOficiais, obterTaxonomia } = require('./lookup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -344,6 +344,20 @@ app.get('/api/status', (req, res) => res.json({
   groq: GROQ_API_KEY ? 'configurado' : 'não configurado',
   openrouter: OPENROUTER_API_KEY ? 'configurado' : 'não configurado'
 }));
+
+// ── TAXONOMIA (para seletores em cascata do frontend) ──────────────────────
+// Leitura estática, sem custo de IA. Usa o globalLimiter só por consistência
+// com as demais rotas. Devolve apenas os textos (marca/modelo/versão), sem
+// dados de consumo, para manter o payload pequeno.
+app.get('/api/veiculos/taxonomia', globalLimiter, (req, res) => {
+  try {
+    const taxonomia = obterTaxonomia(); // só região BR / pbev.json por enquanto
+    res.json(taxonomia);
+  } catch (e) {
+    console.error('❌ Falha ao montar taxonomia:', e.message);
+    res.status(500).json({ error: 'Falha ao carregar taxonomia de veículos.' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ AutoCusto BR backend na porta ${PORT}`);
