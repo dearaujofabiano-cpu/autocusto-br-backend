@@ -50,9 +50,13 @@ const OPENROUTER_MODELS = (
 // São dois limites. O por chamada aborta uma camada lenta. O orçamento total
 // impede que a soma das tentativas estoure o tempo máximo da função na
 // hospedagem, o que mataria o processo antes de qualquer resposta ao cliente.
-// Ajuste CASCATA_ORCAMENTO_MS para menos que o limite do plano da Vercel.
-const CHAMADA_TIMEOUT_MS = Number(process.env.CASCATA_TIMEOUT_MS) || 9000;
-const CASCATA_ORCAMENTO_MS = Number(process.env.CASCATA_ORCAMENTO_MS) || 25000;
+//
+// Os padrões cabem no pior caso do plano Hobby da Vercel, que é 10 s por função
+// em projeto sem Fluid Compute. Com Fluid Compute ativo o teto sobe para 300 s,
+// e aí vale aumentar CASCATA_ORCAMENTO_MS para dar chance às três camadas: com
+// 8 s, a terceira quase sempre fica sem tempo e é pulada.
+const CHAMADA_TIMEOUT_MS = Number(process.env.CASCATA_TIMEOUT_MS) || 5000;
+const CASCATA_ORCAMENTO_MS = Number(process.env.CASCATA_ORCAMENTO_MS) || 8000;
 
 if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
   console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
