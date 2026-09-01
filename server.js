@@ -43,6 +43,17 @@ const OPENROUTER_MODELS = (
   'openrouter/free,meta-llama/llama-3.3-70b-instruct:free'
 ).split(',').map(m => m.trim()).filter(Boolean);
 
+// ── TEMPO LIMITE DA CASCATA ────────────────────────────────────────────────
+// Sem limite, uma camada que aceita a conexão e nunca responde trava a cascata
+// inteira: não cai para a seguinte nem devolve erro, e o usuário fica esperando.
+//
+// São dois limites. O por chamada aborta uma camada lenta. O orçamento total
+// impede que a soma das tentativas estoure o tempo máximo da função na
+// hospedagem, o que mataria o processo antes de qualquer resposta ao cliente.
+// Ajuste CASCATA_ORCAMENTO_MS para menos que o limite do plano da Vercel.
+const CHAMADA_TIMEOUT_MS = Number(process.env.CASCATA_TIMEOUT_MS) || 9000;
+const CASCATA_ORCAMENTO_MS = Number(process.env.CASCATA_ORCAMENTO_MS) || 25000;
+
 if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
   console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
   process.exit(1);
@@ -113,11 +124,50 @@ CALCULATIONS: km_mes=km_dia×30; km_ano=km_dia×365; consumo_mes; custo_mes; cus
 CRITICAL: RETURN ONLY valid JSON — absolutely no markdown, no explanation, no text outside the JSON object.
 {"modo":"comparativo","comparativo":{"parametros":{"km_dia":0,"km_mes":0,"km_ano":0,"ciclo":"string","preco_gasolina":6.65,"preco_etanol":4.44,"preco_kwh":0.75,"etanol_compensa":true},"veiculos":[{"nome":"string","ano":"string","tipo":"ICE|HEV|PHEV|BEV","motor":"string","combustivel":"string","consumo_oficial":{"cidade":0,"estrada":0,"unidade":"string","fonte":"string"},"autonomia_eletrica_km":null,"cenarios":[{"nome":"string","consumo_mes":0,"unidade_consumo":"string","custo_mes":0,"custo_ano":0,"custo_km":0,"economia_mes_vs_veiculo_a":0,"economia_ano_vs_veiculo_a":0}],"cenario_recomendado":"string"}]},"analise":"string"}`;
 
+// ── TEMPO LIMITE E ORÇAMENTO ───────────────────────────────────────────────
+
+/**
+ * Relógio do orçamento total da requisição. Cada camada pergunta quanto ainda
+ * resta antes de tentar, e desiste em vez de estourar o tempo da função.
+ */
+function novoOrcamento(ms = CASCATA_ORCAMENTO_MS) {
+  const fim = Date.now() + ms;
+  return {
+    restante: () => fim - Date.now(),
+    esgotado: () => Date.now() >= fim,
+  };
+}
+
+/**
+ * fetch com AbortController. O limite efetivo é o menor entre o teto por
+ * chamada e o que sobra do orçamento, para a última camada não ser cortada
+ * pela hospedagem no meio da resposta.
+ */
+async function fetchComTimeout(url, opcoes, orcamento, rotulo) {
+  const restante = orcamento ? orcamento.restante() : CHAMADA_TIMEOUT_MS;
+  if (restante <= 0) {
+    throw new Error(`${rotulo}: orçamento de tempo da cascata esgotado`);
+  }
+  const limite = Math.min(CHAMADA_TIMEOUT_MS, restante);
+  const controlador = new AbortController();
+  const alarme = setTimeout(() => controlador.abort(), limite);
+  try {
+    return await fetch(url, { ...opcoes, signal: controlador.signal });
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error(`${rotulo}: sem resposta em ${limite} ms`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(alarme);
+  }
+}
+
 // ── GEMINI ─────────────────────────────────────────────────────────────────
-async function callGemini(mensagem) {
+async function callGemini(mensagem, orcamento) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
-  const res = await fetch(
+  const res = await fetchComTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
@@ -131,7 +181,8 @@ async function callGemini(mensagem) {
           responseMimeType: 'application/json'
         }
       })
-    }
+    },
+    orcamento, 'Gemini'
   );
 
   if (!res.ok) {
@@ -146,10 +197,10 @@ async function callGemini(mensagem) {
 }
 
 // ── GROQ ───────────────────────────────────────────────────────────────────
-async function callGroq(mensagem) {
+async function callGroq(mensagem, orcamento) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetchComTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -165,15 +216,19 @@ async function callGroq(mensagem) {
         { role: 'user', content: mensagem }
       ]
     })
-  });
+  }, orcamento, 'Groq');
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err?.error?.message || `Groq HTTP ${res.status}`;
     if (res.status === 429) {
-      console.warn("⏳ Groq rate limit — aguardando 3s para retry...");
+      // A espera de 3s só compensa se ainda houver orçamento para a tentativa.
+      if (orcamento && orcamento.restante() < 3000 + 2000) {
+        throw new Error('Groq rate limit sem orçamento de tempo para retry');
+      }
+      console.warn("⏳ Groq rate limit, aguardando 3s para retry...");
       await new Promise(r => setTimeout(r, 3000));
-      const res2 = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const res2 = await fetchComTimeout("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
         body: JSON.stringify({
@@ -181,7 +236,7 @@ async function callGroq(mensagem) {
           response_format: { type: "json_object" },
           messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }]
         })
-      });
+      }, orcamento, 'Groq retry');
       if (!res2.ok) throw new Error("Groq rate limit persistente — passando para fallback");
       const data2 = await res2.json();
       const raw2 = data2?.choices?.[0]?.message?.content;
@@ -199,14 +254,19 @@ async function callGroq(mensagem) {
 
 // ── OPENROUTER ─────────────────────────────────────────────────────────────
 
-async function callOpenRouter(mensagem) {
+async function callOpenRouter(mensagem, orcamento) {
   if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY não configurada');
 
   let ultimoErro = null;
 
   for (const model of OPENROUTER_MODELS) {
+    // Cada modelo da lista é uma tentativa nova, e o orçamento vale para todas
+    // somadas: sem isto, uma lista longa consumiria o tempo da função inteira.
+    if (orcamento && orcamento.esgotado()) {
+      throw new Error(`OpenRouter: orçamento de tempo da cascata esgotado. Último erro: ${ultimoErro || 'nenhuma tentativa concluída'}`);
+    }
     try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const res = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -224,7 +284,7 @@ async function callOpenRouter(mensagem) {
             { role: 'user', content: mensagem }
           ]
         })
-      });
+      }, orcamento, `OpenRouter ${model}`);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -254,6 +314,82 @@ async function callOpenRouter(mensagem) {
  * mesmo quando custo_mes/custo_ano estão corretos. Recalcula custo_km de forma
  * determinística a partir de custo_mes e km_mes, garantindo precisão.
  */
+// ── CONFERÊNCIA DA FORMA DA RESPOSTA ───────────────────────────────────────
+
+/**
+ * Move 'analise' para a raiz quando a IA a devolve aninhada em comparativo.
+ */
+function normalizarResposta(parsed) {
+  if (parsed && !parsed.analise && parsed.comparativo?.analise) {
+    parsed.analise = parsed.comparativo.analise;
+  }
+  return parsed;
+}
+
+const ehNumero = v => typeof v === 'number' && Number.isFinite(v);
+const ehTexto  = v => typeof v === 'string' && v.trim().length > 0;
+
+/**
+ * Confere se a resposta tem a forma que o frontend consome, antes de aceitá-la
+ * como sucesso. Um JSON sintaticamente válido mas incompleto passava direto e
+ * só estourava no render, com tela vazia e sem explicação.
+ *
+ * A lista abaixo é o que o render acessa sem proteção, mais os dois valores
+ * sem os quais o comparativo não tem conteúdo. Campo opcional de verdade,
+ * como autonomia_eletrica_km, fica de fora de propósito.
+ *
+ * @returns {string[]} problemas encontrados, vazio quando a resposta serve
+ */
+function validarResposta(parsed) {
+  const problemas = [];
+  if (!parsed || typeof parsed !== 'object') return ['resposta não é um objeto'];
+
+  const comp = parsed.comparativo;
+  if (!comp || typeof comp !== 'object') return ['comparativo ausente'];
+
+  const par = comp.parametros;
+  if (!par || typeof par !== 'object') {
+    problemas.push('parametros ausente');
+  } else if (!ehNumero(par.km_mes) || par.km_mes <= 0) {
+    // recalcularCustoKm divide por este valor.
+    problemas.push('parametros.km_mes ausente ou não positivo');
+  }
+
+  const veics = comp.veiculos;
+  if (!Array.isArray(veics) || veics.length < 2) {
+    problemas.push('veiculos precisa ser uma lista com ao menos dois itens');
+    return problemas;
+  }
+
+  veics.forEach((v, i) => {
+    const ref = `veiculos[${i}]`;
+    if (!ehTexto(v?.nome)) problemas.push(`${ref}.nome ausente`);
+
+    const co = v?.consumo_oficial;
+    if (!co || typeof co !== 'object') {
+      problemas.push(`${ref}.consumo_oficial ausente`);
+    } else {
+      if (!ehNumero(co.cidade)) problemas.push(`${ref}.consumo_oficial.cidade ausente`);
+      if (!ehTexto(co.unidade)) problemas.push(`${ref}.consumo_oficial.unidade ausente`);
+      if (!ehTexto(co.fonte))   problemas.push(`${ref}.consumo_oficial.fonte ausente`);
+    }
+
+    if (!Array.isArray(v?.cenarios) || v.cenarios.length === 0) {
+      problemas.push(`${ref}.cenarios vazio`);
+      return;
+    }
+    v.cenarios.forEach((c, j) => {
+      const cref = `${ref}.cenarios[${j}]`;
+      if (!ehTexto(c?.nome))       problemas.push(`${cref}.nome ausente`);
+      if (!ehNumero(c?.custo_mes)) problemas.push(`${cref}.custo_mes ausente`);
+      if (!ehNumero(c?.custo_ano)) problemas.push(`${cref}.custo_ano ausente`);
+    });
+  });
+
+  if (!ehTexto(parsed.analise)) problemas.push('analise ausente');
+  return problemas;
+}
+
 function recalcularCustoKm(parsed) {
   const kmMes = parsed?.comparativo?.parametros?.km_mes;
   if (!kmMes || kmMes <= 0) return parsed;
@@ -279,6 +415,13 @@ app.get('/', (req, res) => res.json({
   timestamp: new Date().toISOString()
 }));
 
+// Ordem da cascata. A primeira que responder no formato esperado encerra.
+const CAMADAS = [
+  { nome: 'gemini',     chamar: callGemini },
+  { nome: 'groq',       chamar: callGroq },
+  { nome: 'openrouter', chamar: callOpenRouter },
+];
+
 app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
   const { mensagem } = req.body;
   if (!mensagem || typeof mensagem !== 'string' || mensagem.length > 1500)
@@ -303,54 +446,41 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
     console.warn('⚠️  Lookup falhou (usando apenas IA):', e.message);
   }
 
+  // A cascata percorre as camadas em ordem e para na primeira que devolver uma
+  // resposta com a forma esperada. Resposta fora do formato conta como falha da
+  // camada, e não como sucesso: antes disso, um JSON incompleto era aceito e só
+  // quebrava no render do frontend.
+  const orcamento = novoOrcamento();
+  const falhas = {};
   let parsed = null;
   let iaUsada = null;
-  let erroGemini = null;
-  let erroGroq = null;
 
-  // 1. Tenta Gemini (primário)
-  try {
-    parsed = await callGemini(mensagemEnriquecida);
-    iaUsada = 'gemini';
-    console.log('✅ Gemini respondeu com sucesso');
-  } catch (err) {
-    erroGemini = err.message;
-    console.warn(`⚠️  Gemini falhou (${erroGemini}) — tentando Groq...`);
-
-    // 2. Fallback: Groq
+  for (const camada of CAMADAS) {
     try {
-      parsed = await callGroq(mensagemEnriquecida);
-      iaUsada = 'groq';
-      console.log('✅ Groq respondeu com sucesso (fallback)');
-    } catch (err2) {
-      erroGroq = err2.message;
-      console.warn(`⚠️  Groq falhou (${erroGroq}) — tentando OpenRouter...`);
-
-      // 3. Fallback: OpenRouter
-      try {
-        parsed = await callOpenRouter(mensagemEnriquecida);
-        iaUsada = 'openrouter';
-      } catch (err3) {
-        console.error(`❌ OpenRouter também falhou: ${err3.message}`);
-        return res.status(502).json({
-          error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.',
-          detalhes: { gemini: erroGemini, groq: erroGroq, openrouter: err3.message }
-        });
+      const resposta = normalizarResposta(await camada.chamar(mensagemEnriquecida, orcamento));
+      const problemas = validarResposta(resposta);
+      if (problemas.length > 0) {
+        throw new Error(`resposta fora do formato (${problemas.slice(0, 3).join('; ')})`);
       }
+      parsed = resposta;
+      iaUsada = camada.nome;
+      console.log(`✅ ${camada.nome} respondeu com sucesso`);
+      break;
+    } catch (err) {
+      falhas[camada.nome] = err.message;
+      console.warn(`⚠️  ${camada.nome} falhou: ${err.message}`);
     }
   }
 
-  if (!parsed || typeof parsed !== 'object') {
-    return res.status(502).json({ error: 'Resposta inesperada da IA. Tente novamente.' });
+  if (!parsed) {
+    console.error('❌ Todas as camadas falharam');
+    return res.status(502).json({
+      error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.',
+      detalhes: falhas
+    });
   }
 
   parsed._ia = iaUsada;
-
-  // Normalização: garante que 'analise' sempre esteja na raiz do objeto
-  if (!parsed.analise && parsed.comparativo?.analise) {
-    parsed.analise = parsed.comparativo.analise;
-  }
-
   parsed = recalcularCustoKm(parsed);
 
   return res.json(parsed);
