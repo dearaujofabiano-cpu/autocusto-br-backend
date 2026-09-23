@@ -51,12 +51,34 @@ const OPENROUTER_MODELS = (
 // impede que a soma das tentativas estoure o tempo máximo da função na
 // hospedagem, o que mataria o processo antes de qualquer resposta ao cliente.
 //
-// Os padrões cabem no pior caso do plano Hobby da Vercel, que é 10 s por função
-// em projeto sem Fluid Compute. Com Fluid Compute ativo o teto sobe para 300 s,
-// e aí vale aumentar CASCATA_ORCAMENTO_MS para dar chance às três camadas: com
-// 8 s, a terceira quase sempre fica sem tempo e é pulada.
-const CHAMADA_TIMEOUT_MS = Number(process.env.CASCATA_TIMEOUT_MS) || 5000;
-const CASCATA_ORCAMENTO_MS = Number(process.env.CASCATA_ORCAMENTO_MS) || 8000;
+// REGRA DE CALIBRAGEM: o teto por chamada precisa caber no orçamento total
+// vezes o número de camadas, ou seja, CASCATA_TIMEOUT_MS * 3 <= CASCATA_ORCAMENTO_MS.
+// Quando isso não vale, a primeira camada consome o orçamento e as seguintes
+// são puladas por falta de tempo, e o fallback existe só no papel.
+//
+// Os padrões abaixo respeitam a regra: 10000 * 3 = 30000, exatamente o
+// orçamento, então cada uma das três camadas tem 10 s cheios.
+//
+// HISTÓRICO, para não repetir o erro: até 22/09/2026 os padrões eram 5000 e
+// 8000, que quebram a regra (5000 * 3 = 15000 contra 8000 de orçamento). Na
+// prática o Gemini ficava com 5 s, o Groq com os 3 s que sobravam e o
+// OpenRouter com zero. Medição em produção naquele dia: 7 de 7 comparações
+// falharam com 502, sempre em 8,2 s, e o OpenRouter nunca chegou a ser chamado
+// de verdade. O fallback de três níveis existia só no papel.
+//
+// Aqueles valores tinham sido calibrados para um teto de 10 s por função, que
+// era o do plano Hobby sem Fluid Compute. Esse teto não vale mais: com Fluid
+// Compute, ligado por padrão, o Hobby tem 300 s de default e 300 s de máximo,
+// então 30 s de orçamento cabem com folga larga.
+// Ver https://vercel.com/docs/functions/limitations
+//
+// Ao mexer nesses números, por env ou aqui, conferir antes em Settings >
+// Functions do projeto que o Fluid Compute está ligado e qual o Default Max
+// Duration: orçamento acima do teto da função faz a Vercel matar o processo, e
+// aí o usuário recebe um erro cru da plataforma no lugar da mensagem tratada
+// que o backend devolveria.
+const CHAMADA_TIMEOUT_MS = Number(process.env.CASCATA_TIMEOUT_MS) || 10000;
+const CASCATA_ORCAMENTO_MS = Number(process.env.CASCATA_ORCAMENTO_MS) || 30000;
 
 if (!GEMINI_API_KEY && !GROQ_API_KEY && !OPENROUTER_API_KEY) {
   console.error('❌ Nenhuma API Key configurada. Defina GEMINI_API_KEY, GROQ_API_KEY e/ou OPENROUTER_API_KEY.');
@@ -409,13 +431,18 @@ function recalcularCustoKm(parsed) {
 }
 
 // ── ROUTES ─────────────────────────────────────────────────────────────────
+// Os modelos vêm das mesmas constantes que a cascata usa, nunca de texto fixo.
+// Antes eram strings escritas à mão e ficaram defasadas: o endpoint anunciava
+// "Gemini 2.5 Flash" e "Groq Llama 3.3 70B" enquanto a cascata já rodava
+// gemini-3.1-flash-lite e openai/gpt-oss-120b, o que induzia a erro qualquer
+// diagnóstico feito por aqui.
 app.get('/', (req, res) => res.json({
   status: 'online',
   service: 'AutoCusto BR API',
   version: '2.2.0',
-  ia_primaria: 'Gemini 2.5 Flash',
-  ia_fallback_1: 'Groq — Llama 3.3 70B',
-  ia_fallback_2: 'OpenRouter — múltiplos modelos gratuitos',
+  ia_primaria: `Gemini: ${GEMINI_MODEL}`,
+  ia_fallback_1: `Groq: ${GROQ_MODEL}`,
+  ia_fallback_2: `OpenRouter: ${OPENROUTER_MODELS.join(', ')}`,
   timestamp: new Date().toISOString()
 }));
 
