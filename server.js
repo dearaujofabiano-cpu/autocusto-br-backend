@@ -351,8 +351,16 @@ function corpoGemini(mensagem, comSchema) {
 async function callGemini(mensagem, orcamento) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const cabecalhos = { 'Content-Type': 'application/json' };
+  // A chave vai no header, nunca na URL. Com ela em '?key=...', qualquer
+  // mensagem de erro que carregue a URL vazava o segredo: o node-fetch monta
+  // erro de rede como `request to ${url} failed`, e essa mensagem terminava no
+  // campo 'detalhes' da resposta 502, que e publica. Ver sanitizar() abaixo,
+  // que fecha a mesma porta por outro lado.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const cabecalhos = {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': GEMINI_API_KEY,
+  };
 
   let res = await fetchComTimeout(url, {
     method: 'POST', headers: cabecalhos, body: corpoGemini(mensagem, true)
@@ -613,6 +621,31 @@ function recalcularCustoKm(parsed) {
   return parsed;
 }
 
+/**
+ * Limpa mensagem de erro antes de ela sair para o cliente ou para o log.
+ *
+ * O campo 'detalhes' da resposta 502 e publico: qualquer um com curl le, e o
+ * CORS nao protege disso, porque CORS so restringe navegador. Sem esta funcao,
+ * um erro de rede do node-fetch ('request to <url> failed, reason: ...')
+ * entregava a URL inteira, e com ela o que houvesse de segredo nela.
+ *
+ * Faz duas coisas, de proposito redundantes: apaga o valor literal de qualquer
+ * chave configurada, e corta a query string de qualquer URL que sobre. A
+ * primeira cobre a chave; a segunda cobre token futuro que alguem coloque em
+ * URL sem lembrar deste arquivo. Host e caminho ficam, porque sao o que serve
+ * para diagnosticar.
+ */
+function sanitizar(texto) {
+  let s = String(texto == null ? '' : texto);
+  for (const segredo of [GEMINI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY]) {
+    if (segredo && segredo.length >= 8) {
+      s = s.split(segredo).join('[REDIGIDO]');
+    }
+  }
+  return s.replace(/(https?:\/\/[^\s?"']+)\?[^\s"']*/g, '$1?[REDIGIDO]');
+}
+
+
 // ── ROUTES ─────────────────────────────────────────────────────────────────
 // Os modelos vêm das mesmas constantes que a cascata usa, nunca de texto fixo.
 // Antes eram strings escritas à mão e ficaram defasadas: o endpoint anunciava
@@ -681,8 +714,9 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
       console.log(`✅ ${camada.nome} respondeu com sucesso`);
       break;
     } catch (err) {
-      falhas[camada.nome] = err.message;
-      console.warn(`⚠️  ${camada.nome} falhou: ${err.message}`);
+      const limpo = sanitizar(err.message);
+      falhas[camada.nome] = limpo;
+      console.warn(`⚠️  ${camada.nome} falhou: ${limpo}`);
     }
   }
 
