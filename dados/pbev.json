@@ -11,7 +11,7 @@
   "combustivel": "Elétrico",
   "consumo": {
    "eletrico": {
-    "cidade": 58.6,
+    "cidade": 58.59,
     "estrada": 41.9,
     "unidade": "km/Le"
    }
@@ -162,25 +162,6 @@
  {
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
-  "categoria": "Sub Compacto",
-  "marca": "RENAULT",
-  "modelo": "E-KWID",
-  "versao": "INTENS",
-  "motor": "Elétrico",
-  "tipo": "BEV",
-  "combustivel": "Elétrico",
-  "consumo": {
-   "eletrico": {
-    "cidade": 52.7,
-    "estrada": 39.6,
-    "unidade": "km/Le"
-   }
-  },
-  "autonomia_eletrica_km": 185.0
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
   "categoria": "Compacto",
   "marca": "FIAT",
   "modelo": "ARGO",
@@ -251,7 +232,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Compacto",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "HB20",
   "versao": "Sense",
   "motor": "1.0-12V",
@@ -274,7 +255,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Compacto",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "HB20",
   "versao": "Comfort",
   "motor": "1.0-12V",
@@ -297,7 +278,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Compacto",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "HB20",
   "versao": "Limited",
   "motor": "1.0-12V",
@@ -320,7 +301,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Compacto",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "HB20",
   "versao": "Limited",
   "motor": "1.0-12V T",
@@ -343,7 +324,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Compacto",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "HB20",
   "versao": "Platinum",
   "motor": "1.0-12V T",
@@ -664,25 +645,6 @@
     "unidade": "km/L"
    }
   }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Compacto",
-  "marca": "PEUGEOT",
-  "modelo": "E-208",
-  "versao": "GT",
-  "motor": "ELÉTRICO",
-  "tipo": "BEV",
-  "combustivel": "Elétrico",
-  "consumo": {
-   "eletrico": {
-    "cidade": 37.8,
-    "estrada": 30.8,
-    "unidade": "km/Le"
-   }
-  },
-  "autonomia_eletrica_km": 220.0
  },
  {
   "fonte": "PBEV Inmetro",
@@ -3186,7 +3148,18 @@
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
-  "consumo": {}
+  "consumo": {
+   "etanol": {
+    "cidade": 9.3,
+    "estrada": 10.9,
+    "unidade": "km/L"
+   },
+   "gasolina": {
+    "cidade": 13.5,
+    "estrada": 15.7,
+    "unidade": "km/L"
+   }
+  }
  },
  {
   "fonte": "PBEV Inmetro",
@@ -3198,27 +3171,15 @@
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
-  "consumo": {}
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Médio",
-  "marca": "VW",
-  "modelo": "TERA",
-  "versao": "MPI",
-  "motor": "1.0-12V",
-  "tipo": "ICE",
-  "combustivel": "Flex",
   "consumo": {
    "etanol": {
     "cidade": 9.3,
-    "estrada": 10.4,
+    "estrada": 10.9,
     "unidade": "km/L"
    },
    "gasolina": {
-    "cidade": 13.4,
-    "estrada": 15.0,
+    "cidade": 13.5,
+    "estrada": 15.7,
     "unidade": "km/L"
    }
   }
@@ -3336,42 +3297,6 @@
   "regiao": "BR",
   "categoria": "Grande",
   "marca": "AUDI",
-  "modelo": "Q3 SUV",
-  "versao": "Launch edition (ed.0)",
-  "motor": "2.0 - 16V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 8.0,
-    "estrada": 9.8,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Grande",
-  "marca": "AUDI",
-  "modelo": "Q3 Sportback",
-  "versao": "Launch edition (ed.0)",
-  "motor": "2.0 - 16V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 8.0,
-    "estrada": 9.9,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Grande",
-  "marca": "AUDI",
   "modelo": "Q3 Sportback",
   "versao": "Launch edition (ed.0)",
   "motor": "2.0 - 16V",
@@ -3399,42 +3324,6 @@
    "gasolina": {
     "cidade": 8.2,
     "estrada": 9.6,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Grande",
-  "marca": "AUDI",
-  "modelo": "Q3 SUV",
-  "versao": "Launch edition",
-  "motor": "2.0 - 16V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 8.2,
-    "estrada": 9.6,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Grande",
-  "marca": "AUDI",
-  "modelo": "Q3 Sportback",
-  "versao": "Launch edition",
-  "motor": "2.0 - 16V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 8.2,
-    "estrada": 9.5,
     "unidade": "km/L"
    }
   }
@@ -3691,6 +3580,30 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
+  "marca": "CAOA CHERY",
+  "modelo": "TIGGO 7",
+  "versao": "PHEV",
+  "motor": "1.5T -16V",
+  "tipo": "PHEV",
+  "combustivel": "Gasolina",
+  "consumo": {
+   "gasolina": {
+    "cidade": 15.4,
+    "estrada": 13.4,
+    "unidade": "km/L"
+   },
+   "eletrico": {
+    "cidade": 38.6,
+    "estrada": 30.3,
+    "unidade": "km/Le"
+   }
+  },
+  "autonomia_eletrica_km": 68.0
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Grande",
   "marca": "GAC",
   "modelo": "AION Y",
   "versao": "PREMIUM",
@@ -3888,7 +3801,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG A45S 4M",
   "versao": "",
   "motor": "2.0-16V",
@@ -3906,7 +3819,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLA200",
   "versao": "AMG LINE",
   "motor": "1.3-16V",
@@ -3924,7 +3837,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLA200",
   "versao": "PROGRESSIVE",
   "motor": "1.3-16V",
@@ -3942,7 +3855,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLA35 4M",
   "versao": "",
   "motor": "2.0-16V",
@@ -4148,7 +4061,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "NISSAN",
+  "marca": "Nissan",
   "modelo": "Sentra",
   "versao": "SEN CVT",
   "motor": "2.0-16V",
@@ -4166,7 +4079,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "NISSAN",
+  "marca": "Nissan",
   "modelo": "Sentra",
   "versao": "ADV CVT",
   "motor": "2.0-16V",
@@ -4184,7 +4097,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Grande",
-  "marca": "NISSAN",
+  "marca": "Nissan",
   "modelo": "Sentra",
   "versao": "EXC CVT",
   "motor": "2.0-16V",
@@ -4732,25 +4645,6 @@
   "marca": "VOLVO",
   "modelo": "EC40",
   "versao": "PERF BLACK",
-  "motor": "Elétrico",
-  "tipo": "BEV",
-  "combustivel": "Elétrico",
-  "consumo": {
-   "eletrico": {
-    "cidade": 36.6,
-    "estrada": 32.6,
-    "unidade": "km/Le"
-   }
-  },
-  "autonomia_eletrica_km": 404.0
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Grande",
-  "marca": "VOLVO",
-  "modelo": "EC40",
-  "versao": "PERF ULTRA",
   "motor": "Elétrico",
   "tipo": "BEV",
   "combustivel": "Elétrico",
@@ -5845,6 +5739,49 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
+  "marca": "CAOACHANGAN",
+  "modelo": "AVATR 11",
+  "versao": "EV",
+  "motor": "Elétrico",
+  "tipo": "BEV",
+  "combustivel": "Elétrico",
+  "consumo": {
+   "eletrico": {
+    "cidade": 35.0,
+    "estrada": 32.2,
+    "unidade": "km/Le"
+   }
+  },
+  "autonomia_eletrica_km": 497.0
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Extra Grande",
+  "marca": "CAOA CHERY",
+  "modelo": "TIGGO 8",
+  "versao": "PHEV",
+  "motor": "1.5T - 16V",
+  "tipo": "PHEV",
+  "combustivel": "Gasolina",
+  "consumo": {
+   "gasolina": {
+    "cidade": 14.4,
+    "estrada": 12.8,
+    "unidade": "km/L"
+   },
+   "eletrico": {
+    "cidade": 36.1,
+    "estrada": 29.6,
+    "unidade": "km/Le"
+   }
+  },
+  "autonomia_eletrica_km": 70.0
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Extra Grande",
   "marca": "CHEVROLET",
   "modelo": "BLAZER EV",
   "versao": "RS",
@@ -6051,7 +5988,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "GEELY",
+  "marca": "Geely",
   "modelo": "EX5",
   "versao": "MAX",
   "motor": "Elétrico",
@@ -6070,7 +6007,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "GEELY",
+  "marca": "Geely",
   "modelo": "EX5",
   "versao": "PRO",
   "motor": "Elétrico",
@@ -6089,7 +6026,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "GEELY",
+  "marca": "Geely",
   "modelo": "EX5 EM-i",
   "versao": "MAX / PRO",
   "motor": "1.5-16V",
@@ -6113,7 +6050,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "GEELY",
+  "marca": "Geely",
   "modelo": "EX5 EM-i",
   "versao": "ULTRA",
   "motor": "1.5-16V",
@@ -6191,7 +6128,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "IONIQ 5",
   "versao": "Platinum",
   "motor": "Elétrico",
@@ -6210,7 +6147,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "IONIQ 5",
   "versao": "Ultimate",
   "motor": "Elétrico",
@@ -6229,7 +6166,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "HYUNDAI",
+  "marca": "Hyundai",
   "modelo": "IONIQ 5",
   "versao": "Signature",
   "motor": "Elétrico",
@@ -6356,7 +6293,7 @@
   "marca": "LEAPMOTOR",
   "modelo": "C10",
   "versao": "REEV",
-  "motor": "Eletrico",
+  "motor": "1.5ELle -tr i1c6oV/",
   "tipo": "PHEV",
   "combustivel": "Gasolina",
   "consumo": {
@@ -6554,7 +6491,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "CLA200",
   "versao": "AMG LINE",
   "motor": "1.3-16V",
@@ -6572,7 +6509,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "CLA200",
   "versao": "PROGRESSIVE",
   "motor": "1.3-16V",
@@ -6590,7 +6527,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG CLA35 4M",
   "versao": "",
   "motor": "2.0-16V",
@@ -6608,7 +6545,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG CLA45S 4M",
   "versao": "",
   "motor": "2.0-16V",
@@ -6626,7 +6563,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "C200",
   "versao": "AMG LINE",
   "motor": "1.5-16V",
@@ -6644,7 +6581,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "C300",
   "versao": "AMG LINE",
   "motor": "2.0-16V",
@@ -6662,7 +6599,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG C63S EP",
   "versao": "F1",
   "motor": "2.0-16V",
@@ -6686,7 +6623,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG C63S EP",
   "versao": "",
   "motor": "2.0-16V",
@@ -6710,7 +6647,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "E300",
   "versao": "EXCLUSIVE",
   "motor": "2.0-16V",
@@ -6728,7 +6665,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG S63 EP",
   "versao": "",
   "motor": "4.0-32V",
@@ -6752,7 +6689,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLB220 4M",
   "versao": "AMG LINE",
   "motor": "2.0-16V",
@@ -6770,7 +6707,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLB220 4M",
   "versao": "PROGRESSIVE",
   "motor": "2.0-16V",
@@ -6788,7 +6725,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLB35 4M",
   "versao": "",
   "motor": "2.0-16V",
@@ -6806,7 +6743,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLC43",
   "versao": "CO",
   "motor": "2.0-16V",
@@ -6824,7 +6761,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLC63S EP",
   "versao": "",
   "motor": "2.0-16V",
@@ -6848,7 +6785,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLE53 4M",
   "versao": "",
   "motor": "3.0-24V",
@@ -6866,7 +6803,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLE63 S CO",
   "versao": "Coupé",
   "motor": "4.0-32V",
@@ -6884,7 +6821,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLS450 4M",
   "versao": "AMG L",
   "motor": "3.0-24V",
@@ -6902,7 +6839,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "EQB250+",
   "versao": "",
   "motor": "Elétrico",
@@ -6921,7 +6858,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLC43",
   "versao": "",
   "motor": "2.0-16V",
@@ -6939,7 +6876,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "AMG GLC43",
   "versao": "",
   "motor": "2.0-16V",
@@ -6957,7 +6894,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "E300",
   "versao": "EXCLUSIVE",
   "motor": "2.0-16V",
@@ -6975,7 +6912,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MERCEDES-BENZ",
+  "marca": "Mercedes-Benz",
   "modelo": "GLB250",
   "versao": "EV AMGL",
   "motor": "Elétrico",
@@ -6994,7 +6931,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MITSUBISHI",
+  "marca": "Mitsubishi",
   "modelo": "Outlander",
   "versao": "HPE-S E",
   "motor": "2.4-16V",
@@ -7018,7 +6955,7 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Extra Grande",
-  "marca": "MITSUBISHI",
+  "marca": "Mitsubishi",
   "modelo": "Outlander",
   "versao": "SIGNATURE E",
   "motor": "2.4-16V",
@@ -7657,76 +7594,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "CHEVROLET",
   "modelo": "TRACKER",
-  "versao": "LT",
-  "motor": "1.0T - 12V",
-  "tipo": "ICE",
-  "combustivel": "Flex",
-  "consumo": {
-   "etanol": {
-    "cidade": 8.1,
-    "estrada": 9.9,
-    "unidade": "km/L"
-   },
-   "gasolina": {
-    "cidade": 11.5,
-    "estrada": 13.8,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Utilitário Esportivo Compacto",
-  "marca": "CHEVROLET",
-  "modelo": "TRACKER",
-  "versao": "LTZ",
-  "motor": "1.0T - 12V",
-  "tipo": "ICE",
-  "combustivel": "Flex",
-  "consumo": {
-   "etanol": {
-    "cidade": 8.1,
-    "estrada": 9.9,
-    "unidade": "km/L"
-   },
-   "gasolina": {
-    "cidade": 11.5,
-    "estrada": 13.8,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Utilitário Esportivo Compacto",
-  "marca": "CHEVROLET",
-  "modelo": "TRACKER",
   "versao": "RS",
-  "motor": "1.2T - 12V",
-  "tipo": "ICE",
-  "combustivel": "Flex",
-  "consumo": {
-   "etanol": {
-    "cidade": 7.6,
-    "estrada": 9.7,
-    "unidade": "km/L"
-   },
-   "gasolina": {
-    "cidade": 11.0,
-    "estrada": 13.7,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Utilitário Esportivo Compacto",
-  "marca": "CHEVROLET",
-  "modelo": "TRACKER",
-  "versao": "PREMIER",
   "motor": "1.2T - 12V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -9842,7 +9710,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "T CROSS",
-  "versao": "AUTOMÁTICO",
+  "versao": "HIGHLINE 250TSI AUTOMÁTICO",
   "motor": "1.4 - 16V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -9865,7 +9733,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "T CROSS",
-  "versao": "AUTOMATICO",
+  "versao": "COMAFUOTROTMLIANTEI C2O00TSI",
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -9888,7 +9756,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "T CROSS",
-  "versao": "AUTOMATICO",
+  "versao": "COMAFUOTROTMLIANTEI C2O00TSI",
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -10003,7 +9871,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "NIVUS",
-  "versao": "AUTOMÁTICO",
+  "versao": "HIGHLINE 200TSI AUTOMÁTICO",
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -10026,7 +9894,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "NIVUS",
-  "versao": "AUTOMÁTICO",
+  "versao": "COMFORTLINE 200TSI",
   "motor": "1.0-12V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -10049,7 +9917,7 @@
   "categoria": "Utilitário Esportivo Compacto",
   "marca": "VW",
   "modelo": "T CROSS",
-  "versao": "AUTOMÁTICO",
+  "versao": "EXTREMEA U25T0OTMSÁI TAIUCTOOMÁTICO",
   "motor": "1.4 - 16V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -10434,6 +10302,93 @@
    }
   },
   "autonomia_eletrica_km": 56.0
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Utilitário Esportivo Grande",
+  "marca": "CAOA CHERY",
+  "modelo": "TIGGO 7",
+  "versao": "PRO 16TA",
+  "motor": "1.6T - 16V",
+  "tipo": "ICE",
+  "combustivel": "Gasolina",
+  "consumo": {
+   "gasolina": {
+    "cidade": 9.9,
+    "estrada": 12.0,
+    "unidade": "km/L"
+   }
+  }
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Utilitário Esportivo Grande",
+  "marca": "CAOACHANGAN",
+  "modelo": "CS75",
+  "versao": "INFINITY (LEV4)",
+  "motor": "1.5 1F6LVEX -",
+  "tipo": "ICE",
+  "combustivel": "Flex",
+  "consumo": {
+   "etanol": {
+    "cidade": 7.2,
+    "estrada": 8.5,
+    "unidade": "km/L"
+   },
+   "gasolina": {
+    "cidade": 10.5,
+    "estrada": 12.3,
+    "unidade": "km/L"
+   }
+  }
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Utilitário Esportivo Grande",
+  "marca": "CAOACHANGAN",
+  "modelo": "UNI-T",
+  "versao": "INFINITY (LEV4)",
+  "motor": "1.5 1F6LVEX -",
+  "tipo": "ICE",
+  "combustivel": "Flex",
+  "consumo": {
+   "etanol": {
+    "cidade": 7.1,
+    "estrada": 8.6,
+    "unidade": "km/L"
+   },
+   "gasolina": {
+    "cidade": 10.5,
+    "estrada": 12.4,
+    "unidade": "km/L"
+   }
+  }
+ },
+ {
+  "fonte": "PBEV Inmetro",
+  "regiao": "BR",
+  "categoria": "Utilitário Esportivo Grande",
+  "marca": "CAOA CHERY",
+  "modelo": "TIGGO 7",
+  "versao": "SPORT",
+  "motor": "1.5T - 16V",
+  "tipo": "ICE",
+  "combustivel": "Flex",
+  "consumo": {
+   "etanol": {
+    "cidade": 6.6,
+    "estrada": 7.9,
+    "unidade": "km/L"
+   },
+   "gasolina": {
+    "cidade": 10.3,
+    "estrada": 11.8,
+    "unidade": "km/L"
+   }
+  }
  },
  {
   "fonte": "PBEV Inmetro",
@@ -11705,7 +11660,7 @@
   "categoria": "Utilitário Esportivo Grande",
   "marca": "VW",
   "modelo": "TAOS",
-  "versao": "AUTOMÁTICO",
+  "versao": "HIGHLINE 250TSI AUTOMÁTICO",
   "motor": "1.4 - 16V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -11728,7 +11683,7 @@
   "categoria": "Utilitário Esportivo Grande",
   "marca": "VW",
   "modelo": "TAOS",
-  "versao": "AUTOMÁTICO",
+  "versao": "COMAFUOTROTMLIÁNTEI C2O50TSI",
   "motor": "1.4 - 16V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -16362,11 +16317,22 @@
   "categoria": "Picape Compacta",
   "marca": "VW",
   "modelo": "SAVEIRO",
-  "versao": "ROBUST MF",
+  "versao": "SAVEIRO CABINE SIMPLES",
   "motor": "1.6-16V",
   "tipo": "ICE",
   "combustivel": "Flex",
-  "consumo": {}
+  "consumo": {
+   "etanol": {
+    "cidade": 7.7,
+    "estrada": 8.8,
+    "unidade": "km/L"
+   },
+   "gasolina": {
+    "cidade": 11.2,
+    "estrada": 12.9,
+    "unidade": "km/L"
+   }
+  }
  },
  {
   "fonte": "PBEV Inmetro",
@@ -16374,7 +16340,7 @@
   "categoria": "Picape Compacta",
   "marca": "VW",
   "modelo": "SAVEIRO",
-  "versao": "MF",
+  "versao": "CABINE SRIOMBPU MLES FST MTRFENDLINE",
   "motor": "1.6-16V",
   "tipo": "ICE",
   "combustivel": "Flex",
@@ -16564,24 +16530,6 @@
   "marca": "CHEVROLET",
   "modelo": "S10",
   "versao": "WT DD4A",
-  "motor": "2.8 - 16V",
-  "tipo": "ICE",
-  "combustivel": "Diesel",
-  "consumo": {
-   "diesel": {
-    "cidade": 8.8,
-    "estrada": 11.9,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Picape",
-  "marca": "CHEVROLET",
-  "modelo": "S10",
-  "versao": "LTZ DD4A",
   "motor": "2.8 - 16V",
   "tipo": "ICE",
   "combustivel": "Diesel",
@@ -18569,24 +18517,6 @@
   "fonte": "PBEV Inmetro",
   "regiao": "BR",
   "categoria": "Esportivo",
-  "marca": "BMW",
-  "modelo": "M2",
-  "versao": "CUP",
-  "motor": "3.0 - 24V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 7.2,
-    "estrada": 9.3,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Esportivo",
   "marca": "FERRARI",
   "modelo": "296",
   "versao": "GTB",
@@ -19180,42 +19110,6 @@
    "gasolina": {
     "cidade": 7.2,
     "estrada": 9.2,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Esportivo",
-  "marca": "PORSCHE",
-  "modelo": "911",
-  "versao": "GT3 FA 90Y",
-  "motor": "4.0-32V",
-  "tipo": "ICE",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 5.2,
-    "estrada": 6.9,
-    "unidade": "km/L"
-   }
-  }
- },
- {
-  "fonte": "PBEV Inmetro",
-  "regiao": "BR",
-  "categoria": "Esportivo",
-  "marca": "PORSCHE",
-  "modelo": "911",
-  "versao": "TARGA 4GTS",
-  "motor": "3.6/24V",
-  "tipo": "HEV",
-  "combustivel": "Gasolina",
-  "consumo": {
-   "gasolina": {
-    "cidade": 6.9,
-    "estrada": 9.3,
     "unidade": "km/L"
    }
   }

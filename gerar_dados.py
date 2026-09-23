@@ -534,7 +534,9 @@ def main():
         dados = gerador(origem)
         alvo = destino / nome
         with open(alvo, 'w', encoding='utf-8') as f:
-            json.dump(dados, f, ensure_ascii=False, indent=2)
+            # indent=1 acompanha o formato ja versionado dos JSONs de dados,
+            # para o diff de uma regeracao mostrar so o que mudou de fato.
+            json.dump(dados, f, ensure_ascii=False, indent=1)
         print('  gravado: %s\n' % alvo)
 
 
