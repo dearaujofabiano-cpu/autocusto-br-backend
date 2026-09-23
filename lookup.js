@@ -1,23 +1,22 @@
 /**
  * AutoCusto BR — Lookup de dados oficiais
- * Busca veículo em pbev.json (BR) ou wltp.json (EU)
- * antes de enviar o prompt para a IA.
+ * Busca veículo em pbev.json antes de enviar o prompt para a IA.
+ *
+ * O app cobria também a União Europeia, com wltp.json. A região foi retirada
+ * em 23/09/2026, junto com esse conjunto de dados: a fonte era a VCA, agência
+ * do Reino Unido, e não da UE, e não se achou base europeia com a estrutura de
+ * marca, modelo e versão que os seletores em cascata exigem.
  */
 
 const path = require('path');
 const fs   = require('fs');
 
 let _pbev = null;
-let _wltp = null;
 
 function carregarDados() {
   if (!_pbev) {
     const p = path.join(__dirname, 'dados', 'pbev.json');
     _pbev = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : [];
-  }
-  if (!_wltp) {
-    const p = path.join(__dirname, 'dados', 'wltp.json');
-    _wltp = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : [];
   }
 }
 
@@ -53,7 +52,7 @@ function score(haystack, needle) {
 
 /**
  * Busca o veículo mais próximo no dataset dado.
- * @param {Array}  dataset  - pbev ou wltp
+ * @param {Array}  dataset  - registros do pbev.json
  * @param {string} marca
  * @param {string} modelo
  * @param {string} versao   - opcional
@@ -93,7 +92,7 @@ function buscar(dataset, marca, modelo, versao = '', minScore = 0.6) {
 /**
  * Formata dados do veículo como texto para injetar no prompt.
  */
-function formatarParaPrompt(resultado, regiao) {
+function formatarParaPrompt(resultado) {
   if (!resultado) return null;
   const { veiculo, score } = resultado;
   const c = veiculo.consumo;
@@ -104,30 +103,17 @@ function formatarParaPrompt(resultado, regiao) {
     `Tipo: ${veiculo.tipo} | Combustível: ${veiculo.combustivel || '-'}`,
   ];
 
-  if (regiao === 'BR') {
-    if (c.gasolina) {
-      linhas.push(`Consumo gasolina: cidade ${c.gasolina.cidade} km/L | estrada ${c.gasolina.estrada} km/L`);
-    }
-    if (c.etanol) {
-      linhas.push(`Consumo etanol: cidade ${c.etanol.cidade} km/L | estrada ${c.etanol.estrada} km/L`);
-    }
-    if (c.diesel) {
-      linhas.push(`Consumo diesel: cidade ${c.diesel.cidade} km/L | estrada ${c.diesel.estrada} km/L`);
-    }
-    if (c.eletrico) {
-      linhas.push(`Consumo elétrico: cidade ${c.eletrico.cidade} km/Le | estrada ${c.eletrico.estrada} km/Le`);
-    }
-  } else {
-    // EU — WLTP em L/100km ou Wh/km
-    if (c.combinado) {
-      linhas.push(`Consumo WLTP combinado: ${c.combinado.valor} ${c.combinado.unidade}`);
-    }
-    if (c.gasolina_combinado) {
-      linhas.push(`Consumo WLTP gasolina combinado: ${c.gasolina_combinado.valor} ${c.gasolina_combinado.unidade}`);
-    }
-    if (c.eletrico_wh_km) {
-      linhas.push(`Consumo elétrico: ${c.eletrico_wh_km.valor} ${c.eletrico_wh_km.unidade}`);
-    }
+  if (c.gasolina) {
+    linhas.push(`Consumo gasolina: cidade ${c.gasolina.cidade} km/L | estrada ${c.gasolina.estrada} km/L`);
+  }
+  if (c.etanol) {
+    linhas.push(`Consumo etanol: cidade ${c.etanol.cidade} km/L | estrada ${c.etanol.estrada} km/L`);
+  }
+  if (c.diesel) {
+    linhas.push(`Consumo diesel: cidade ${c.diesel.cidade} km/L | estrada ${c.diesel.estrada} km/L`);
+  }
+  if (c.eletrico) {
+    linhas.push(`Consumo elétrico: cidade ${c.eletrico.cidade} km/Le | estrada ${c.eletrico.estrada} km/Le`);
   }
 
   if (veiculo.autonomia_eletrica_km) {
@@ -142,19 +128,17 @@ function formatarParaPrompt(resultado, regiao) {
 /**
  * API principal: recebe veículos da requisição e retorna dados oficiais.
  * @param {Array<{marca, modelo, versao}>} veiculos
- * @param {string} regiao - 'BR' ou 'EU'
  * @returns {string} bloco de dados para injetar no prompt
  */
-function obterDadosOficiais(veiculos, regiao = 'BR') {
+function obterDadosOficiais(veiculos) {
   carregarDados();
-  const dataset = regiao === 'EU' ? _wltp : _pbev;
 
   const blocos = [];
 
   for (const v of veiculos) {
     if (!v.marca || !v.modelo) continue;
-    const resultado = buscar(dataset, v.marca, v.modelo, v.versao);
-    const texto = formatarParaPrompt(resultado, regiao);
+    const resultado = buscar(_pbev, v.marca, v.modelo, v.versao);
+    const texto = formatarParaPrompt(resultado);
     if (texto) {
       blocos.push(`--- ${v.marca} ${v.modelo} ---\n${texto}`);
     }
@@ -169,10 +153,6 @@ function obterDadosOficiais(veiculos, regiao = 'BR') {
  * Constrói a árvore Marca → Modelo → [Versões] a partir do pbev.json,
  * para alimentar os seletores em cascata do frontend.
  * Ordenado alfabeticamente em cada nível.
- *
- * PENDÊNCIA: só cobre a região BR (pbev.json). A região EU (wltp.json)
- * continua com campos de texto livre no frontend — estender aqui quando
- * a cascata for aplicada ao WLTP.
  */
 function obterTaxonomia() {
   carregarDados();

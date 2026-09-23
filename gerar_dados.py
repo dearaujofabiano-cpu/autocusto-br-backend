@@ -3,19 +3,16 @@
 """
 gerar_dados.py, regenera os JSONs de dados oficiais do AutoCusto BR.
 
-    pip install pdfplumber pandas
-    python gerar_dados.py --pbev "Tabela PBEV 2026_20_JAN-REV04.pdf" \
-                          --wltp Euro_6_latest.csv \
-                          --out ./dados
+    pip install pdfplumber
+    python gerar_dados.py --pbev "Tabela PBEV 2026_25_AGO.pdf" --out ./dados
 
-Cada fonte e opcional: passe so --pbev para regerar o Brasil, so --wltp para
-regerar a Uniao Europeia, ou os dois.
+FONTE
+  PDF do PBEV, Inmetro, gov.br/inmetro. Publicado com revisoes ao longo do
+  ano (JAN-REV04, JUN, AGO...). Use sempre a mais recente.
 
-FONTES
-  Brasil: PDF do PBEV, Inmetro, gov.br/inmetro. Publicado com revisoes ao
-          longo do ano (JAN-REV04, JUN, AGO...). Use sempre a mais recente.
-  UE:     CSV Euro 6 da VCA, carfueldata.vehicle-certification-agency.gov.uk.
-          Publicado uma vez por ano.
+  O script tambem gerava dados/wltp.json, da VCA britanica, para a regiao
+  Uniao Europeia. Essa regiao saiu do app em 23/09/2026 e o gerador dela foi
+  removido junto. O historico esta no commit que a retirou.
 
 POR QUE pdfplumber E NAO pypdf
   O pypdf embaralha as colunas da tabela do Inmetro, o que gera consumo
@@ -365,182 +362,28 @@ def gerar_pbev(pdf_path):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  UNIAO EUROPEIA, WLTP / VCA
-# ══════════════════════════════════════════════════════════════════════════
-#
-# ATENCAO, esta metade NAO foi validada contra o CSV real.
-#
-# O gerar_dados.py original se perdeu, e o CSV da VCA nao estava no disco na
-# reconstrucao de 23/09/2026. A metade PBEV acima foi recuperada de um script
-# irmao e confere registro a registro com dados/pbev.json. Esta aqui foi
-# deduzida a partir da forma do dados/wltp.json ja gerado.
-#
-# O ponto que obrigou a deducao: a coluna 'Fuel Type' NAO determina o tipo.
-# No wltp.json atual, 'Petrol Electric' aparece como HEV em 651 registros e
-# como ICE em 620, o que so se explica por uma coluna de powertrain separando
-# hibrido cheio de mild hybrid. Por isso o tipo sai de POWERTRAIN_MAP abaixo.
-#
-# Como o mapeamento e deducao, esta metade FALHA ALTO quando encontra um valor
-# que nao conhece, em vez de gravar dado errado em silencio. Se o primeiro uso
-# reclamar, ajuste POWERTRAIN_MAP e confira o resultado contra o wltp.json
-# anterior antes de substituir.
-
-WLTP_COLUNAS = {
-    'marca':       ['manufacturer', 'make'],
-    'modelo':      ['model'],
-    'versao':      ['description', 'variant'],
-    'combustivel': ['fuel type', 'fuel'],
-    'powertrain':  ['powertrain'],
-    'combinado':   ['wltp metric combined', 'metric combined', 'combined (l/100km)'],
-    'wh_km':       ['wh/km', 'electric energy consumption wh/km'],
-    'autonomia':   ['maximum range (km)', 'electric range (km)', 'range (km)'],
-}
-
-# Ordem importa: 'plug-in hybrid' tem de ser testado antes de 'hybrid', e
-# 'mild hybrid' antes de 'hybrid electric', senao o casamento parcial erra.
-POWERTRAIN_MAP = [
-    ('plug-in hybrid', 'PHEV'), ('phev', 'PHEV'),
-    ('battery electric', 'BEV'), ('pure electric', 'BEV'), ('bev', 'BEV'),
-    ('mild hybrid', 'ICE'), ('mhev', 'ICE'),   # mild hybrid conta como ICE
-    ('hybrid electric', 'HEV'), ('hev', 'HEV'),
-    ('internal combustion', 'ICE'), ('ice', 'ICE'),
-]
-
-
-def _achar_coluna(colunas, candidatos, obrigatoria=True, rotulo=''):
-    norm = {str(c).strip().lower(): c for c in colunas}
-    for cand in candidatos:
-        if cand in norm:
-            return norm[cand]
-    for cand in candidatos:                      # casamento parcial
-        for chave, original in norm.items():
-            if cand in chave:
-                return original
-    if obrigatoria:
-        raise SystemExit(
-            'ERRO: coluna "%s" nao encontrada no CSV.\n'
-            '  procurei por: %s\n'
-            '  colunas do arquivo: %s\n'
-            'Ajuste WLTP_COLUNAS em gerar_dados.py.'
-            % (rotulo, candidatos, list(colunas))
-        )
-    return None
-
-
-def _classificar(powertrain):
-    p = str(powertrain or '').strip().lower()
-    for chave, tipo in POWERTRAIN_MAP:
-        if chave in p:
-            return tipo
-    return None
-
-
-def gerar_wltp(csv_path):
-    import pandas as pd
-
-    df = pd.read_csv(csv_path, encoding='latin-1', low_memory=False)
-    col = {k: _achar_coluna(df.columns, v,
-                            obrigatoria=(k not in ('autonomia', 'wh_km')),
-                            rotulo=k)
-           for k, v in WLTP_COLUNAS.items()}
-
-    def val(linha, chave):
-        c = col.get(chave)
-        if not c:
-            return None
-        v = linha.get(c)
-        return None if pd.isna(v) else v
-
-    def num(linha, chave):
-        v = val(linha, chave)
-        if v is None:
-            return None
-        try:
-            return float(str(v).replace(',', '.'))
-        except ValueError:
-            return None
-
-    registros, desconhecidos = [], Counter()
-    for _, linha in df.iterrows():
-        tipo = _classificar(val(linha, 'powertrain'))
-        if tipo is None:
-            desconhecidos[str(val(linha, 'powertrain'))] += 1
-            continue
-
-        consumo = {}
-        combinado = num(linha, 'combinado')
-        wh_km = num(linha, 'wh_km')
-        if combinado is not None:
-            # PHEV separa o consumo fossil do eletrico; ICE e HEV tem um so.
-            chave = 'gasolina_combinado' if tipo == 'PHEV' else 'combinado'
-            consumo[chave] = {'valor': combinado, 'unidade': 'L/100km'}
-        if wh_km is not None:
-            consumo['eletrico_wh_km'] = {'valor': wh_km, 'unidade': 'Wh/km'}
-
-        autonomia = num(linha, 'autonomia')
-        registros.append({
-            'fonte': 'WLTP (VCA)',
-            'regiao': 'EU',
-            'marca': _txt(str(val(linha, 'marca') or '')),
-            'modelo': _txt(str(val(linha, 'modelo') or '')),
-            'versao': _txt(str(val(linha, 'versao') or '')),
-            'tipo': tipo,
-            'combustivel': _txt(str(val(linha, 'combustivel') or '')),
-            'consumo': consumo,
-            'autonomia_eletrica_km': autonomia if tipo in ('BEV', 'PHEV') else None,
-        })
-
-    if desconhecidos:
-        raise SystemExit(
-            'ERRO: valores de powertrain nao reconhecidos, nada foi gravado.\n'
-            + ''.join('  %5d x %s\n' % (n, p) for p, n in desconhecidos.most_common())
-            + 'Acrescente-os a POWERTRAIN_MAP em gerar_dados.py e rode de novo.'
-        )
-
-    vistos, saida = set(), []
-    for e in registros:
-        chave = json.dumps(e, sort_keys=True, ensure_ascii=False)
-        if chave in vistos:
-            continue
-        vistos.add(chave)
-        saida.append(e)
-
-    print('  WLTP: %d registros, %d duplicados removidos'
-          % (len(saida), len(registros) - len(saida)))
-    print('    tipos: %s' % dict(Counter(e['tipo'] for e in saida)))
-    return saida
-
-
-# ══════════════════════════════════════════════════════════════════════════
 
 def main():
     ap = argparse.ArgumentParser(
         description='Regenera os JSONs de dados oficiais do AutoCusto BR.')
-    ap.add_argument('--pbev', help='PDF da tabela PBEV do Inmetro (Brasil)')
-    ap.add_argument('--wltp', help='CSV Euro 6 da VCA (Uniao Europeia)')
+    ap.add_argument('--pbev', required=True,
+                    help='PDF da tabela PBEV do Inmetro')
     ap.add_argument('--out', default='./dados', help='pasta de saida (padrao: ./dados)')
     args = ap.parse_args()
-
-    if not args.pbev and not args.wltp:
-        ap.error('informe ao menos --pbev ou --wltp')
 
     destino = Path(args.out)
     destino.mkdir(parents=True, exist_ok=True)
 
-    for origem, gerador, nome in ((args.pbev, gerar_pbev, 'pbev.json'),
-                                  (args.wltp, gerar_wltp, 'wltp.json')):
-        if not origem:
-            continue
-        if not Path(origem).exists():
-            raise SystemExit('ERRO: arquivo nao encontrado: %s' % origem)
-        print('Lendo %s' % origem)
-        dados = gerador(origem)
-        alvo = destino / nome
-        with open(alvo, 'w', encoding='utf-8') as f:
-            # indent=1 acompanha o formato ja versionado dos JSONs de dados,
-            # para o diff de uma regeracao mostrar so o que mudou de fato.
-            json.dump(dados, f, ensure_ascii=False, indent=1)
-        print('  gravado: %s\n' % alvo)
+    if not Path(args.pbev).exists():
+        raise SystemExit('ERRO: arquivo nao encontrado: %s' % args.pbev)
+    print('Lendo %s' % args.pbev)
+    dados = gerar_pbev(args.pbev)
+    alvo = destino / 'pbev.json'
+    # indent=1 acompanha o formato ja versionado dos JSONs de dados, para o
+    # diff de uma regeracao mostrar so o que mudou de fato.
+    with open(alvo, 'w', encoding='utf-8') as f:
+        json.dump(dados, f, ensure_ascii=False, indent=1)
+    print('  gravado: %s\n' % alvo)
 
 
 if __name__ == '__main__':

@@ -123,26 +123,20 @@ LANGUAGE RULES:
 
 CLASSIFY each vehicle: ICE (combustão/flex/gasolina/diesel), HEV (híbrido sem plug), PHEV (híbrido plug-in), BEV (100% elétrico)
 
-REGION RULES — read the REGIÃO/REGION field in the user message:
-- Se REGIÃO/REGION = Brasil/Brazil: use PBEV INMETRO, unidades km/L (combustão) e km/Le (elétrico), moeda R$, inclua cenário de etanol quando aplicável
-- Se REGIÃO/REGION = União Europeia/European Union: use ciclo WLTP (EU oficial), unidades L/100km ou kWh/100km, moeda €, NÃO inclua etanol (use gasolina + diesel + elétrico), adapte a análise ao mercado europeu (Portugal, Espanha, França, etc.)
-- SEMPRE siga a instrução de idioma indicada na mensagem do usuário
+MARKET: apenas Brasil. Use PBEV INMETRO, unidades km/L (combustão) e km/Le (elétrico), moeda R$, inclua cenário de etanol quando aplicável. SEMPRE siga a instrução de idioma indicada na mensagem do usuário.
 
 CONSUMPTION DATA — priority order (MANDATORY):
-1. Região Brasil: Tabela PBEV Inmetro — versão jan/2026, gov.br/inmetro — FONTE PRIORITÁRIA OBRIGATÓRIA. Região EU: ciclo WLTP oficial — FONTE PRIORITÁRIA OBRIGATÓRIA
-2. Especificações oficiais do fabricante para o mercado correspondente (ano-modelo vigente)
-3. Imprensa especializada 2025/2026 (BR: Quatro Rodas, Motor Show, Mobiauto, Autoesporte | EU: imprensa especializada local)
-4. Estimativa conservadora — informar claramente: "Estimativa — não localizado no PBEV 2026" (BR) ou "Estimativa — não localizado no WLTP" (EU)
+1. Tabela PBEV Inmetro, gov.br/inmetro — FONTE PRIORITÁRIA OBRIGATÓRIA
+2. Especificações oficiais do fabricante para o mercado brasileiro (ano-modelo vigente)
+3. Imprensa especializada 2025/2026 (Quatro Rodas, Motor Show, Mobiauto, Autoesporte)
+4. Estimativa conservadora — informar claramente: "Estimativa — não localizado no PBEV 2026"
 
-CAMPO "fonte":
-- Região Brasil: "PBEV INMETRO" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
-- Região EU: "WLTP (EU)" | "Fabricante — [ano]" | "Estimativa — não localizado no WLTP"
-NUNCA escreva "PBEV 2024". Para EU, NUNCA mencione PBEV.
+CAMPO "fonte": "PBEV INMETRO" | "Fabricante — [ano]" | "Estimativa — não localizado no PBEV 2026"
+NUNCA escreva "PBEV 2024".
 
 CYCLE: até 30km/dia→cidade | 31-100→70%cidade+30%estrada | >100→estrada
-PRICES BR (ANP mai/2026): gasolina R$6,65/L | etanol R$4,44/L | diesel R$6,20/L | energia R$0,75/kWh
-PRICES EU: use médias de mercado atuais em € para gasolina, diesel e eletricidade (kWh) do país relevante; NUNCA use preços de etanol
-ETHANOL (somente Região Brasil, veículos flex): calcule ambos gasolina e etanol. Compensa se <70% gasolina (4,44<4,66→compensa). Para Região EU, etanol_compensa deve ser omitido/false e nenhum cenário de etanol deve ser apresentado
+PRICES (ANP mai/2026): gasolina R$6,65/L | etanol R$4,44/L | diesel R$6,20/L | energia R$0,75/kWh
+ETHANOL (veículos flex): calcule ambos gasolina e etanol. Compensa se <70% gasolina (4,44<4,66→compensa)
 PHEV: Cenário A (carregamento noturno) + Cenário B (sem carregamento)
 
 CALCULATIONS: km_mes=km_dia×30; km_ano=km_dia×365; consumo_mes; custo_mes; custo_ano; custo_km(4 decimais); economia vs veículo A
@@ -652,11 +646,11 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Entrada inválida.' });
 
   // ── Enriquecer prompt com dados oficiais ──────────────────────────────
-  const { veiculos, regiao } = req.body;
+  const { veiculos } = req.body;
   let mensagemEnriquecida = mensagem;
   try {
     if (Array.isArray(veiculos) && veiculos.length > 0) {
-      const dadosOficiais = obterDadosOficiais(veiculos, regiao || 'BR');
+      const dadosOficiais = obterDadosOficiais(veiculos);
       if (dadosOficiais) {
         mensagemEnriquecida = mensagem + dadosOficiais;
         console.log(`📋 Dados oficiais injetados para ${veiculos.length} veículo(s)`);
