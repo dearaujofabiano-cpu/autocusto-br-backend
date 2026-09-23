@@ -248,6 +248,43 @@ const SCHEMA_RESPOSTA = {
   }
 };
 
+/**
+ * O Gemini nao aceita JSON Schema puro: usa um subconjunto do OpenAPI, com o
+ * tipo em caixa alta, sem additionalProperties, e campo opcional marcado por
+ * 'nullable' em vez de uniao com null. Converter aqui, a partir do mesmo
+ * SCHEMA_RESPOSTA que o Groq usa, evita duas fontes de verdade divergindo.
+ *
+ * 'enum' fica de fora de proposito: nao e necessario para a validacao e
+ * reduz a superficie de incompatibilidade entre versoes do modelo.
+ */
+function paraSchemaGemini(no) {
+  if (!no || typeof no !== 'object') return no;
+
+  // anyOf [X, null] e a forma de opcional no schema do Groq.
+  if (Array.isArray(no.anyOf)) {
+    const real = no.anyOf.find(o => o && o.type && o.type !== 'null');
+    const aceitaNulo = no.anyOf.some(o => o && o.type === 'null');
+    const convertido = paraSchemaGemini(real || {});
+    if (aceitaNulo) convertido.nullable = true;
+    return convertido;
+  }
+
+  const saida = {};
+  if (no.type) saida.type = String(no.type).toUpperCase();
+  if (no.items) saida.items = paraSchemaGemini(no.items);
+  if (no.properties) {
+    saida.properties = {};
+    for (const [chave, valor] of Object.entries(no.properties)) {
+      saida.properties[chave] = paraSchemaGemini(valor);
+    }
+  }
+  if (Array.isArray(no.required)) saida.required = [...no.required];
+  return saida;
+}
+
+const SCHEMA_GEMINI = paraSchemaGemini(SCHEMA_RESPOSTA);
+
+
 // ── TEMPO LIMITE E ORÇAMENTO ───────────────────────────────────────────────
 
 /**
@@ -288,26 +325,52 @@ async function fetchComTimeout(url, opcoes, orcamento, rotulo) {
 }
 
 // ── GEMINI ─────────────────────────────────────────────────────────────────
+
+function corpoGemini(mensagem, comSchema) {
+  const generationConfig = {
+    temperature: 0.1,
+    maxOutputTokens: 2048,
+    responseMimeType: 'application/json'
+  };
+  if (comSchema) generationConfig.responseSchema = SCHEMA_GEMINI;
+  return JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: mensagem }] }],
+    generationConfig
+  });
+}
+
+/**
+ * Tenta com responseSchema e recua para a chamada sem schema se o Gemini
+ * recusar com 400.
+ *
+ * O recuo existe porque esta e a camada que atende quase todo o trafego, e o
+ * formato aceito varia entre versoes do modelo: GEMINI_MODEL e trocavel por
+ * variavel de ambiente, entao um modelo futuro pode recusar o schema. Sem o
+ * recuo, uma troca de modelo derrubaria o app inteiro em vez de so perder a
+ * garantia de formato. Um 400 volta em menos de um segundo, entao o custo do
+ * recuo cabe folgado no orcamento da cascata.
+ *
+ * Se o schema for recusado, validarResposta continua conferindo a forma, que
+ * era a unica protecao antes desta mudanca.
+ */
 async function callGemini(mensagem, orcamento) {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY não configurada');
 
-  const res = await fetchComTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: mensagem }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json'
-        }
-      })
-    },
-    orcamento, 'Gemini'
-  );
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const cabecalhos = { 'Content-Type': 'application/json' };
+
+  let res = await fetchComTimeout(url, {
+    method: 'POST', headers: cabecalhos, body: corpoGemini(mensagem, true)
+  }, orcamento, 'Gemini');
+
+  if (res.status === 400) {
+    const err = await res.json().catch(() => ({}));
+    console.warn(`⚠️  Gemini recusou o responseSchema (${err?.error?.message || 'sem detalhe'}), repetindo sem schema`);
+    res = await fetchComTimeout(url, {
+      method: 'POST', headers: cabecalhos, body: corpoGemini(mensagem, false)
+    }, orcamento, 'Gemini sem schema');
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
