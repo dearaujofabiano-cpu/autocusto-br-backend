@@ -729,6 +729,11 @@ app.post('/api/comparar', globalLimiter, perIpLimiter, async (req, res) => {
   }
 
   parsed._ia = iaUsada;
+  // Quando uma camada falha mas outra salva, a requisicao volta 200 e o motivo
+  // da falha se perdia: so aparecia no 502, quando TODAS falhavam. Isso deixava
+  // cego justamente o caso mais comum, o de degradacao silenciosa. As mensagens
+  // ja passam por sanitizar(), entao nao carregam segredo.
+  if (Object.keys(falhas).length > 0) parsed._falhas = falhas;
   parsed = recalcularCustoKm(parsed);
 
   return res.json(parsed);
