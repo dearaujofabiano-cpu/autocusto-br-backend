@@ -19,12 +19,20 @@ FONTES
 
 POR QUE pdfplumber E NAO pypdf
   O pypdf embaralha as colunas da tabela do Inmetro, o que gera consumo
-  trocado entre gasolina e etanol. O pdfplumber preserva a grade, e por isso
-  a extracao depende da linha ter exatamente 28 colunas.
+  trocado entre gasolina e etanol. O pdfplumber preserva a grade.
+
+LAYOUTS SUPORTADOS
+  O Inmetro mudou a tabela entre as revisoes de 2026. O script detecta pela
+  largura, ver LAYOUTS, e aceita as duas que circulam:
+    28 colunas (revisao de janeiro): uma linha e um veiculo.
+    33 colunas (revisao de agosto):  uma linha traz ate 4 veiculos
+                                     empilhados dentro das celulas.
+  Revisao com outra largura para o script; nunca grava dado adivinhado.
 """
 
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -33,15 +41,16 @@ from pathlib import Path
 #  BRASIL, PBEV Inmetro
 # ══════════════════════════════════════════════════════════════════════════
 
-PBEV_COLUNAS = 28  # a tabela do Inmetro; linha com outro tamanho nao e dado
-
 TIPO_MAP = {
     'Combustão': 'ICE',  'Combustao': 'ICE',
     'Híbrido':   'HEV',  'Hibrido':   'HEV',
     'Plug-in':   'PHEV', 'Plug-In':   'PHEV',
     'Elétrico':  'BEV',  'Eletrico':  'BEV',
 }
-COMB_MAP = {'E': 'Etanol', 'G': 'Gasolina', 'F': 'Flex', 'D': 'Diesel'}
+# E100 apareceu na revisao de agosto de 2026, nas versoes ALC do Onix, que
+# rodam so com etanol e nao trazem coluna de gasolina.
+COMB_MAP = {'E': 'Etanol', 'E100': 'Etanol', 'G': 'Gasolina',
+            'F': 'Flex', 'D': 'Diesel'}
 
 
 def _num(s):
@@ -67,11 +76,10 @@ def _conferir_sanidade_pbev(registros, pdf_path):
     """
     Barra a gravacao quando a extracao saiu embaralhada.
 
-    A grade de 28 colunas so vale para o layout do PDF de janeiro de 2026.
-    Medido em 23/09/2026: o mesmo codigo rodado nos PDFs de junho e de agosto
-    devolve linhas com marca duplicada e modelo trocado ('AUDI AUDI SQ6
-    Sportback e-tron Quattro Q7 - S Line'), codigos de combustivel que nao
-    existem ('E100', 'F\\nF') e cerca de metade dos registros a menos.
+    Ultima rede de protecao, depois da deteccao de layout e do filtro por
+    vocabulario fechado. Medido em 23/09/2026: ler o PDF de agosto com a
+    grade de janeiro devolvia marca duplicada e modelo trocado ('AUDI AUDI
+    SQ6 Sportback e-tron Quattro Q7 - S Line') e metade dos registros.
 
     Sem esta conferencia, esse lixo era gravado por cima de dados/pbev.json
     sem um aviso sequer, o que e pior do que nao ter script nenhum: o app
@@ -106,49 +114,159 @@ def _conferir_sanidade_pbev(registros, pdf_path):
         raise SystemExit(
             'ERRO: a extracao de %s saiu embaralhada, NADA foi gravado.\n' % pdf_path
             + ''.join('  - %s\n' % p for p in problemas)
-            + '\nO layout deste PDF nao bate com a grade de %d colunas esperada.\n'
+            + '\nO layout deste PDF nao bate com nenhum dos suportados.\n'
               'Inspecione a tabela real antes de ajustar:\n'
               '  import pdfplumber\n'
               '  with pdfplumber.open(PDF) as pdf:\n'
               '      for t in pdf.pages[3].extract_tables():\n'
               '          print(len(t[0]), t[0]); print(t[1])\n'
-              'Depois corrija PBEV_COLUNAS e os indices em gerar_pbev().\n'
-            % PBEV_COLUNAS
+              'Depois acrescente a largura e os indices em LAYOUTS.\n'
         )
+
+
+def _partes(celula, n):
+    """
+    Uma celula do layout de 33 colunas guarda N veiculos empilhados, separados
+    por quebra de linha. Devolve as N partes, ou uma lista de None quando a
+    celula esta vazia (linha de eletrico nao tem coluna de gasolina). Devolve
+    False quando a contagem nao bate, sinal de linha corrompida.
+    """
+    if celula is None or not str(celula).strip():
+        return [None] * n
+    partes = str(celula).split('\n')
+    if len(partes) == n:
+        return partes
+    return False
+
+
+# Texto sobreposto vira letra repetida: 'HHHH YYYY UUUU NNNN DDDD AAAA IIII'.
+LIXO_SOBREPOSTO = re.compile(r'(.)\1{3,}')
+
+
+def _colunas_usadas(idx):
+    """Indices que gerar_pbev() de fato le. Uma coluna que o script ignora
+    nao pode derrubar a linha inteira so por vir mal formada."""
+    usadas = {0, 1, 2, 3, 4, 5, 6, 9, idx['autonomia']}
+    for par in ('etanol', 'fossil', 'eletrico'):
+        usadas.update(idx[par])
+    usadas.update(range(*idx['emissoes'].indices(10 ** 6)))
+    return sorted(usadas)
+
+
+def _expandir(linhas, largura, idx):
+    """
+    Layout de 28 colunas (PDF de janeiro): uma linha e um veiculo.
+    Layout de 33 colunas (PDF de agosto): uma linha traz de 1 a 4 veiculos
+    empilhados dentro das celulas, separados por quebra de linha. Foi essa
+    mudanca que fez o extrator antigo devolver marca duplicada e consumo de
+    outro carro, e nao apenas o deslocamento dos indices.
+    """
+    if largura == 28:
+        return [list(r) for r in linhas], 0
+
+    usadas = _colunas_usadas(idx)
+    registros, descartadas = [], 0
+    for r in linhas:
+        marca = r[1]
+        if marca is None:
+            descartadas += 1
+            continue
+        # Algumas linhas saem com o texto desenhado varias vezes uma sobre a
+        # outra. dedupe_chars nao resolve, porque nao sao duplicatas de mesma
+        # posicao. A checagem pela marca so pega sobreposicao de 3 copias ou
+        # mais; a de 2 copias ('CCoommbbuusstt') cai no filtro por vocabulario
+        # fechado de 'tipo', em gerar_pbev().
+        if LIXO_SOBREPOSTO.search(str(marca)):
+            descartadas += 1
+            continue
+        n = len(str(marca).split('\n'))
+        colunas = [_partes(c, n) for c in r]
+        # So as colunas lidas precisam bater. Exigir isso das 33 derrubava
+        # linhas inteiras por causa de coluna que nem entra no JSON: medido em
+        # 23/09/2026, 24 linhas descartadas contra 2 realmente ilegiveis.
+        if any(colunas[j] is False for j in usadas):
+            descartadas += 1
+            continue
+        colunas = [c if c is not False else [None] * n for c in colunas]
+        for i in range(n):
+            registros.append([c[i] for c in colunas])
+    return registros, descartadas
+
+
+# Indice de cada campo por largura de tabela. O Inmetro mudou o layout entre a
+# revisao de janeiro e a de agosto de 2026, e as duas circulam, entao o script
+# detecta pela largura em vez de assumir uma.
+LAYOUTS = {
+    28: {'etanol': (17, 18), 'fossil': (19, 20), 'eletrico': (21, 22),
+         'autonomia': 24, 'emissoes': slice(10, 16)},
+    33: {'etanol': (18, 19), 'fossil': (21, 22), 'eletrico': (24, 25),
+         'autonomia': 29, 'emissoes': slice(10, 14)},
+}
 
 
 def gerar_pbev(pdf_path):
     import pdfplumber
 
-    linhas = []
+    por_largura = {}
     with pdfplumber.open(pdf_path) as pdf:
         for pagina in pdf.pages:
             for tabela in pagina.extract_tables():
                 for linha in tabela:
                     if not linha or linha[0] in ('Categoria', None):
                         continue
-                    if len(linha) != PBEV_COLUNAS:
-                        continue
-                    linhas.append(linha)
+                    if len(linha) in LAYOUTS:
+                        por_largura.setdefault(len(linha), []).append(linha)
 
-    if not linhas:
+    if not por_largura:
         raise SystemExit(
-            'ERRO: nenhuma linha de %d colunas encontrada em %s.\n'
-            'O layout da tabela do Inmetro provavelmente mudou. Confira o numero\n'
-            'de colunas com: pdfplumber.open(pdf).pages[N].extract_tables()'
-            % (PBEV_COLUNAS, pdf_path)
+            'ERRO: nenhuma tabela reconhecida em %s.\n'
+            'Larguras suportadas: %s. Inspecione o PDF com:\n'
+            '  import pdfplumber\n'
+            '  with pdfplumber.open(PDF) as pdf:\n'
+            '      for t in pdf.pages[0].extract_tables(): print(len(t[0]))'
+            % (pdf_path, sorted(LAYOUTS))
         )
 
-    registros = []
-    for r in linhas:
-        tipo = TIPO_MAP.get((r[5] or '').strip(), (r[5] or '').strip())
-        combustivel = ('Elétrico' if tipo == 'BEV'
-                       else COMB_MAP.get((r[9] or '').strip(), (r[9] or '').strip()))
+    largura = max(por_largura, key=lambda k: len(por_largura[k]))
+    brutas = [r for r in por_largura[largura]
+              if r[1] is not None and str(r[1]).strip() and 'Marca' not in str(r[1])]
+    idx = LAYOUTS[largura]
+    print('  layout detectado: %d colunas, %d linhas de tabela' % (largura, len(brutas)))
 
-        etanol   = (_num(r[17]), _num(r[18]))
-        fossil   = (_num(r[19]), _num(r[20]))   # gasolina ou diesel
-        eletrico = (_num(r[21]), _num(r[22]))
-        autonomia = _num(r[24])
+    linhas, descartadas = _expandir(brutas, largura, idx)
+    if descartadas:
+        proporcao = descartadas / len(brutas)
+        print('  %d linhas descartadas por texto corrompido (%.1f%%)'
+              % (descartadas, proporcao * 100))
+        if proporcao > 0.05:
+            raise SystemExit(
+                'ERRO: %.1f%% das linhas sairam corrompidas, alto demais para\n'
+                'ignorar. A extracao deste PDF nao esta confiavel, nada foi gravado.'
+                % (proporcao * 100)
+            )
+
+    registros = []
+    corrompidos = 0
+    for r in linhas:
+        # 'tipo' e 'combustivel' tem vocabulario fechado, entao servem de
+        # peneira confiavel contra texto sobreposto: 'CCoommbbuusstt\u00e3\u00e3oo' e
+        # 'FF' nao passam, e nenhum valor legitimo e barrado por engano.
+        tipo = TIPO_MAP.get((r[5] or '').strip())
+        if tipo is None:
+            corrompidos += 1
+            continue
+        if tipo == 'BEV':
+            combustivel = 'El\u00e9trico'
+        else:
+            combustivel = COMB_MAP.get((r[9] or '').strip())
+            if combustivel is None:
+                corrompidos += 1
+                continue
+
+        etanol = (_num(r[idx['etanol'][0]]), _num(r[idx['etanol'][1]]))
+        fossil = (_num(r[idx['fossil'][0]]), _num(r[idx['fossil'][1]]))
+        eletrico = (_num(r[idx['eletrico'][0]]), _num(r[idx['eletrico'][1]]))
+        autonomia = _num(r[idx['autonomia']])
 
         consumo = {}
         if None not in etanol:
@@ -176,8 +294,19 @@ def gerar_pbev(pdf_path):
             entrada['autonomia_eletrica_km'] = autonomia
         # Assinatura do irmao tecnico: mesmo motor, transmissao e emissoes.
         entrada['_sig'] = (entrada['marca'], entrada['modelo'], entrada['motor'],
-                           r[6], tuple(r[10:16]))
+                           r[6], tuple(r[idx['emissoes']]))
         registros.append(entrada)
+
+    if corrompidos:
+        proporcao = corrompidos / (len(registros) + corrompidos)
+        print('  %d registros descartados por tipo ou combustivel ilegivel (%.1f%%)'
+              % (corrompidos, proporcao * 100))
+        if proporcao > 0.05:
+            raise SystemExit(
+                'ERRO: %.1f%% dos registros sairam ilegiveis, alto demais para\n'
+                'ignorar. A extracao deste PDF nao esta confiavel, nada foi gravado.'
+                % (proporcao * 100)
+            )
 
     # O PDF traz celulas de consumo em branco em algumas versoes, glitch de
     # extracao. O registro irmao de mesma ficha tecnica tem os mesmos numeros.
