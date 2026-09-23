@@ -196,6 +196,21 @@ def _expandir(linhas, largura, idx):
 # Indice de cada campo por largura de tabela. O Inmetro mudou o layout entre a
 # revisao de janeiro e a de agosto de 2026, e as duas circulam, entao o script
 # detecta pela largura em vez de assumir uma.
+# Opcoes de extracao. Com o padrao do pdfplumber, o PDF de agosto devolvia
+# 481 linhas com ate 4 veiculos empilhados por celula e 20 linhas com o texto
+# desenhado umas sobre as outras, ilegiveis. Com a grade de linhas e
+# snap_tolerance 1, o mesmo PDF devolve 968 linhas, uma por veiculo, e
+# nenhuma corrompida. Medido em 23/09/2026:
+#   padrao          481 linhas, 20 corrompidas, 856 veiculos
+#   lines+snap=1    968 linhas,  0 corrompidas, 968 veiculos
+# O desdobramento por quebra de linha continua no codigo porque nao custa
+# nada e cobre revisao futura que volte a empilhar.
+EXTRACAO = {
+    'vertical_strategy': 'lines',
+    'horizontal_strategy': 'lines',
+    'snap_tolerance': 1,
+}
+
 LAYOUTS = {
     28: {'etanol': (17, 18), 'fossil': (19, 20), 'eletrico': (21, 22),
          'autonomia': 24, 'emissoes': slice(10, 16)},
@@ -210,7 +225,7 @@ def gerar_pbev(pdf_path):
     por_largura = {}
     with pdfplumber.open(pdf_path) as pdf:
         for pagina in pdf.pages:
-            for tabela in pagina.extract_tables():
+            for tabela in pagina.extract_tables(EXTRACAO):
                 for linha in tabela:
                     if not linha or linha[0] in ('Categoria', None):
                         continue
