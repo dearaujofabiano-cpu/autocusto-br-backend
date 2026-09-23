@@ -297,7 +297,10 @@ def gerar_pbev(pdf_path):
             'fonte': 'PBEV Inmetro',
             'regiao': 'BR',
             'categoria': _txt(r[0]),
-            'marca': _txt(r[1]),
+            # Caixa alta sempre. A revisao de agosto traz a mesma marca em duas
+            # grafias ('HYUNDAI' e 'Hyundai', 'NISSAN' e 'Nissan'), e quem ler o
+            # JSON sem normalizar acaba com a marca partida em duas.
+            'marca': _txt(r[1]).upper(),
             'modelo': _txt(r[2]),
             'versao': _txt(r[3]),
             'motor': _txt(r[4]),
