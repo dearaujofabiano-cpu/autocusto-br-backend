@@ -150,6 +150,104 @@ CALCULATIONS: km_mes=km_dia×30; km_ano=km_dia×365; consumo_mes; custo_mes; cus
 CRITICAL: RETURN ONLY valid JSON — absolutely no markdown, no explanation, no text outside the JSON object.
 {"modo":"comparativo","comparativo":{"parametros":{"km_dia":0,"km_mes":0,"km_ano":0,"ciclo":"string","preco_gasolina":6.65,"preco_etanol":4.44,"preco_kwh":0.75,"etanol_compensa":true},"veiculos":[{"nome":"string","ano":"string","tipo":"ICE|HEV|PHEV|BEV","motor":"string","combustivel":"string","consumo_oficial":{"cidade":0,"estrada":0,"unidade":"string","fonte":"string"},"autonomia_eletrica_km":null,"cenarios":[{"nome":"string","consumo_mes":0,"unidade_consumo":"string","custo_mes":0,"custo_ano":0,"custo_km":0,"economia_mes_vs_veiculo_a":0,"economia_ano_vs_veiculo_a":0}],"cenario_recomendado":"string"}]},"analise":"string"}`;
 
+// ── SCHEMA DA RESPOSTA ────────────────────────────────────────
+// O SYSTEM_PROMPT descreve o formato esperado em texto, o que é só uma sugestão:
+// o modelo pode ignorar. Com response_format json_object o Groq garante apenas
+// que a saída seja JSON válido, nunca que tenha a forma certa. O resultado
+// medido em 22/09/2026: nas 3 vezes em que o Groq respondeu dentro do prazo,
+// as 3 reprovaram em validarResposta, com veiculos incompleto, cenarios vazio
+// e analise ausente.
+//
+// Este schema é a mesma forma, agora como contrato executável. O gpt-oss-120b
+// suporta structured outputs em modo strict no Groq, que exige todo campo em
+// required e additionalProperties false em todo objeto. Campo opcional se
+// declara como união com null via anyOf, nunca omitindo do required.
+// Ver https://console.groq.com/docs/structured-outputs
+//
+// Fica de propósito fora do schema a exigência de dois veículos: strict não
+// cobre minItems de forma confiável, então validarResposta segue conferindo.
+const SCHEMA_RESPOSTA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['modo', 'comparativo', 'analise'],
+  properties: {
+    modo: { type: 'string' },
+    analise: { type: 'string' },
+    comparativo: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['parametros', 'veiculos'],
+      properties: {
+        parametros: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['km_dia', 'km_mes', 'km_ano', 'ciclo', 'preco_gasolina', 'preco_etanol', 'preco_kwh', 'etanol_compensa'],
+          properties: {
+            km_dia: { type: 'number' },
+            km_mes: { type: 'number' },
+            km_ano: { type: 'number' },
+            ciclo: { type: 'string' },
+            preco_gasolina: { type: 'number' },
+            // Região UE não usa etanol, mas strict exige todo campo presente:
+            // nesse caso o modelo devolve 0 e false, que o frontend ignora.
+            preco_etanol: { type: 'number' },
+            preco_kwh: { type: 'number' },
+            etanol_compensa: { type: 'boolean' }
+          }
+        },
+        veiculos: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['nome', 'ano', 'tipo', 'motor', 'combustivel', 'consumo_oficial', 'autonomia_eletrica_km', 'cenarios', 'cenario_recomendado'],
+            properties: {
+              nome: { type: 'string' },
+              ano: { type: 'string' },
+              tipo: { type: 'string', enum: ['ICE', 'HEV', 'PHEV', 'BEV'] },
+              motor: { type: 'string' },
+              combustivel: { type: 'string' },
+              consumo_oficial: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['cidade', 'estrada', 'unidade', 'fonte'],
+                properties: {
+                  cidade: { type: 'number' },
+                  estrada: { type: 'number' },
+                  unidade: { type: 'string' },
+                  fonte: { type: 'string' }
+                }
+              },
+              // Só faz sentido em PHEV e BEV, por isso a união com null.
+              autonomia_eletrica_km: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+              cenarios: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['nome', 'consumo_mes', 'unidade_consumo', 'custo_mes', 'custo_ano', 'custo_km', 'economia_mes_vs_veiculo_a', 'economia_ano_vs_veiculo_a'],
+                  properties: {
+                    nome: { type: 'string' },
+                    consumo_mes: { type: 'number' },
+                    unidade_consumo: { type: 'string' },
+                    custo_mes: { type: 'number' },
+                    custo_ano: { type: 'number' },
+                    // Vem do modelo mas é sempre sobrescrito por recalcularCustoKm.
+                    custo_km: { type: 'number' },
+                    economia_mes_vs_veiculo_a: { type: 'number' },
+                    economia_ano_vs_veiculo_a: { type: 'number' }
+                  }
+                }
+              },
+              cenario_recomendado: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
 // ── TEMPO LIMITE E ORÇAMENTO ───────────────────────────────────────────────
 
 /**
@@ -222,26 +320,58 @@ async function callGemini(mensagem, orcamento) {
   return JSON.parse(raw);
 }
 
-// ── GROQ ───────────────────────────────────────────────────────────────────
+// ── GROQ ──────────────────────────────────────────────────────
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+/**
+ * Corpo da chamada ao Groq. Fica numa função porque a chamada e o retry de
+ * rate limit precisam ser idênticos: enquanto era copiado nos dois lugares, o
+ * retry divergia em silêncio a cada ajuste.
+ *
+ * Três decisões aqui:
+ * - response_format json_schema em modo strict, e não json_object. É o que de
+ *   fato obriga a forma que validarResposta cobra, ver SCHEMA_RESPOSTA.
+ * - reasoning_effort low. O gpt-oss-120b é modelo de raciocínio e no padrão
+ *   gasta boa parte do orçamento de tokens pensando antes de escrever, o que
+ *   competia com o JSON e ainda somava latência numa camada que é fallback.
+ * - max_completion_tokens no lugar de max_tokens, com folga de 2048 para 4096,
+ *   para o JSON completo caber mesmo com raciocínio junto.
+ */
+function corpoGroq(mensagem) {
+  return JSON.stringify({
+    model: GROQ_MODEL,
+    temperature: 0.1,
+    max_completion_tokens: 4096,
+    reasoning_effort: 'low',
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'comparativo_veicular',
+        strict: true,
+        schema: SCHEMA_RESPOSTA
+      }
+    },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: mensagem }
+    ]
+  });
+}
+
+function cabecalhosGroq() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${GROQ_API_KEY}`
+  };
+}
+
 async function callGroq(mensagem, orcamento) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
 
-  const res = await fetchComTimeout('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetchComTimeout(GROQ_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      temperature: 0.1,
-      max_tokens: 2048,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: mensagem }
-      ]
-    })
+    headers: cabecalhosGroq(),
+    body: corpoGroq(mensagem)
   }, orcamento, 'Groq');
 
   if (!res.ok) {
@@ -252,21 +382,17 @@ async function callGroq(mensagem, orcamento) {
       if (orcamento && orcamento.restante() < 3000 + 2000) {
         throw new Error('Groq rate limit sem orçamento de tempo para retry');
       }
-      console.warn("⏳ Groq rate limit, aguardando 3s para retry...");
+      console.warn('⏳ Groq rate limit, aguardando 3s para retry...');
       await new Promise(r => setTimeout(r, 3000));
-      const res2 = await fetchComTimeout("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
-        body: JSON.stringify({
-          model: GROQ_MODEL, temperature: 0.1, max_tokens: 2048,
-          response_format: { type: "json_object" },
-          messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: mensagem }]
-        })
+      const res2 = await fetchComTimeout(GROQ_URL, {
+        method: 'POST',
+        headers: cabecalhosGroq(),
+        body: corpoGroq(mensagem)
       }, orcamento, 'Groq retry');
-      if (!res2.ok) throw new Error("Groq rate limit persistente — passando para fallback");
+      if (!res2.ok) throw new Error('Groq rate limit persistente, passando para fallback');
       const data2 = await res2.json();
       const raw2 = data2?.choices?.[0]?.message?.content;
-      if (!raw2) throw new Error("Groq retry: resposta vazia");
+      if (!raw2) throw new Error('Groq retry: resposta vazia');
       return JSON.parse(raw2);
     }
     throw new Error(msg);
